@@ -64,19 +64,19 @@ const words = tWords().map(normalizeWord);
 		aria-label={t('hero.titleAria')}
 	>
 		{
-			words.map((word, wordIdx) => {
+			words.map((word) => {
 				const toneClass =
 					word.tone === 'primary' ? 'text-primary' : word.tone === 'accent' ? 'text-accent' : '';
 				const chars = Array.from(word.text);
 				return (
-					<>
-						{!word.glue && wordIdx > 0 && ' '}
-						<span class:list={['hero-word', toneClass]} aria-hidden="true">
-							{chars.map((char) => (
-								<span class="hero-char">{char}</span>
-							))}
-						</span>
-					</>
+					<span
+						class:list={['hero-word', toneClass, word.glue && 'hero-word--glue']}
+						aria-hidden="true"
+					>
+						{chars.map((char) => (
+							<span class="hero-char">{char}</span>
+						))}
+					</span>
 				);
 			})
 		}<span class="hero-cursor" aria-hidden="true"></span>
@@ -191,6 +191,13 @@ const words = tWords().map(normalizeWord);
 	.hero-word {
 		display: inline-block;
 		white-space: nowrap;
+	}
+
+	/* Espacio entre palabras vía CSS — depender del text node " " entre spans falla cuando
+	   algún minificador HTML colapsa whitespace entre inline elements. `.hero-word--glue`
+	   se usa para puntuación (p. ej. coma) que debe pegarse a la palabra anterior. */
+	.hero-word + .hero-word:not(.hero-word--glue) {
+		margin-inline-start: 0.25em;
 	}
 
 	.hero-char {

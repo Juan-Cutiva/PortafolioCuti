@@ -3,7 +3,6 @@ import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import icon from 'astro-icon';
-import compress from 'astro-compress';
 import vercel from '@astrojs/vercel';
 
 // Setear PUBLIC_SITE_URL antes del deploy. Sitemap, canonicals y og:url dependen de esto.
@@ -51,20 +50,9 @@ export default defineConfig({
 				return item;
 			}
 		}),
-		icon(),
-		// Va último para trabajar sobre el output ya generado.
-		compress({
-			CSS: true,
-			HTML: true,
-			JavaScript: true,
-			Image: false, // lo hace el adapter de Vercel
-			SVG: true
-		})
+		icon()
 	],
 	vite: {
-		plugins: [tailwindcss()],
-		build: {
-			cssMinify: 'lightningcss'
-		}
+		plugins: [tailwindcss()]
 	}
 });

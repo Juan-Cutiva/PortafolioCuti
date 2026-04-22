@@ -6,6 +6,8 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/roboto-mono/wght.css';
 import '@styles/global.css';
 import { ClientRouter } from 'astro:transitions';
+import Analytics from '@vercel/analytics/astro';
+import SpeedInsights from '@vercel/speed-insights/astro';
 import {
 	getLocaleFromUrl,
 	getLocaleUrl,
@@ -308,6 +310,9 @@ const websiteSchema = {
 		</main>
 
 		<Footer />
+
+		<Analytics />
+		<SpeedInsights />
 
 		<script>
 			import { setupSectionReveal } from '@/lib/animations';
