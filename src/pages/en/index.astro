@@ -1,0 +1,45 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Hero from '@components/sections/Hero.astro';
+import Projects from '@components/sections/Projects.astro';
+import About from '@components/sections/About.astro';
+import Experience from '@components/sections/Experience.astro';
+import Skills from '@components/sections/Skills.astro';
+import Education from '@components/sections/Education.astro';
+
+export const prerender = true;
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+
+const profilePageSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'ProfilePage',
+	'@id': `${siteBase}/en/#profilepage`,
+	name: 'Juan David Cutiva López — Frontend Developer',
+	url: `${siteBase}/en/`,
+	inLanguage: 'en',
+	dateModified: new Date().toISOString(),
+	isPartOf: { '@id': `${siteBase}/#website` },
+	mainEntity: { '@id': `${siteBase}/#person` }
+};
+---
+
+<Layout
+	title="Juan David Cutiva López — Frontend Developer"
+	description="Portfolio of Juan David Cutiva López. Projects, experience and stack as a frontend developer with React, Astro and TailwindCSS."
+	lang="en"
+>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(profilePageSchema)}
+	/>
+
+	<Hero />
+	<About />
+	<Experience />
+	<Projects />
+	<Skills />
+	<Education />
+</Layout>

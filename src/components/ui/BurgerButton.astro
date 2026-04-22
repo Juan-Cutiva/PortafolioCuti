@@ -1,0 +1,73 @@
+---
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+interface Props {
+	/** Id del drawer que este botón controla. */
+	controls: string;
+}
+
+const { controls } = Astro.props;
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+---
+
+<button
+	type="button"
+	id="burger-button"
+	data-drawer-trigger
+	data-label-open={t('drawer.open')}
+	data-label-close={t('drawer.close')}
+	class="hamburger inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md bg-transparent text-foreground transition-colors hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:hidden"
+	aria-label={t('drawer.open')}
+	aria-controls={controls}
+	aria-expanded="false"
+>
+	<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+		<path
+			class="line line-top-bottom"
+			d="M27 10 13 10C10.8 10 9 8.2 9 6 9 3.5 10.8 2 13 2 15.2 2 17 3.8 17 6L17 26C17 28.2 18.8 30 21 30 23.2 30 25 28.2 25 26 25 23.8 23.2 22 21 22L7 22"
+		></path>
+		<path class="line" d="M7 16 27 16"></path>
+	</svg>
+</button>
+
+<style>
+	/* Solo la animación del SVG; display/size lo resuelve Tailwind arriba (inline-flex / md:hidden). */
+	.hamburger svg {
+		height: 1.5rem;
+		width: 1.5rem;
+		transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.line {
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 3;
+		transition:
+			stroke-dasharray 400ms cubic-bezier(0.22, 1, 0.36, 1),
+			stroke-dashoffset 400ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.line-top-bottom {
+		stroke-dasharray: 12 63;
+	}
+
+	.hamburger[aria-expanded='true'] svg {
+		transform: rotate(-45deg);
+	}
+
+	.hamburger[aria-expanded='true'] .line-top-bottom {
+		stroke-dasharray: 20 300;
+		stroke-dashoffset: -32.42;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hamburger svg,
+		.line {
+			transition: none;
+		}
+	}
+</style>

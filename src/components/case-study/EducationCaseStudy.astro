@@ -1,0 +1,136 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Button from '@components/ui/Button.astro';
+import CaseStudyHeader from '@components/CaseStudyHeader.astro';
+import { Icon } from 'astro-icon/components';
+import { render, type CollectionEntry } from 'astro:content';
+import { cleanSlug } from '@/i18n/collections';
+import { getLocaleUrl, useTranslations, type Locale } from '@/i18n/ui';
+
+interface Props {
+	entry: CollectionEntry<'education'>;
+	locale: Locale;
+}
+
+const { entry, locale } = Astro.props;
+const { data } = entry;
+const { Content } = await render(entry);
+
+const { t } = useTranslations(locale);
+const slug = cleanSlug(entry);
+
+const title = `${data.degree} — ${data.institution}`;
+const description = data.description ?? `${data.degree} — ${data.institution}`;
+const ogImage = `/api/og?type=education&slug=${slug}`;
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const pageUrl = `${siteBase}${getLocaleUrl(`/education/${slug}`, locale)}`;
+
+const breadcrumbSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'BreadcrumbList',
+	itemListElement: [
+		{
+			'@type': 'ListItem',
+			position: 1,
+			name: t('nav.home'),
+			item: `${siteBase}${getLocaleUrl('/', locale)}`
+		},
+		{
+			'@type': 'ListItem',
+			position: 2,
+			name: t('nav.education'),
+			item: `${siteBase}${getLocaleUrl('/#education', locale)}`
+		},
+		{ '@type': 'ListItem', position: 3, name: data.degree, item: pageUrl }
+	]
+};
+
+const nowIso = new Date().toISOString();
+
+// Programa educativo. `provider` lo ata a la institución (EducationalOrganization).
+const educationalProgramSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'EducationalOccupationalProgram',
+	'@id': `${pageUrl}#program`,
+	name: data.degree,
+	description,
+	url: pageUrl,
+	inLanguage: locale === 'en' ? 'en' : 'es-CO',
+	dateModified: nowIso,
+	provider: {
+		'@type': 'EducationalOrganization',
+		name: data.institution,
+		...(data.url ? { url: data.url } : {})
+	},
+	...(data.meta?.location ? { occupationalLocation: data.meta.location } : {}),
+	...(data.period ? { termDuration: data.period } : {})
+};
+---
+
+<Layout
+	title={title}
+	description={description}
+	image={ogImage}
+	ogType="article"
+	lang={locale}
+	article={{
+		section: t('nav.education'),
+		modifiedTime: nowIso,
+		tags: data.period ? [data.period] : undefined
+	}}
+>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(breadcrumbSchema)}
+	/>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(educationalProgramSchema)}
+	/>
+
+	<article class="mx-auto max-w-3xl px-5 py-16 sm:px-6 sm:py-24">
+		<CaseStudyHeader
+			breadcrumb={{
+				href: getLocaleUrl('/#education', locale),
+				label: t('caseStudy.backEducation')
+			}}
+			eyebrow={t('caseStudy.education')}
+			title={data.degree}
+			description={data.institution}
+			primaryButton={
+				data.url
+					? {
+							href: data.url,
+							label: t('caseStudy.visitInstitution'),
+							variant: 'primary',
+							icon: 'lucide:external-link'
+						}
+					: undefined
+			}
+			image={data.image}
+			meta={data.meta}
+		/>
+
+		<div class="case-study-prose mt-14">
+			<Content />
+		</div>
+
+		<footer
+			class="border-border mt-16 flex flex-col gap-4 border-t pt-10 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<Button as="a" href={getLocaleUrl('/#education', locale)} variant="ghost">
+				<Icon name="lucide:arrow-left" class="h-4 w-4" aria-hidden="true" />
+				{t('caseStudy.backToEducation')}
+			</Button>
+			<Button as="a" href={getLocaleUrl('/contact', locale)} variant="primary">
+				{t('caseStudy.contactMe')}
+				<Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+			</Button>
+		</footer>
+	</article>
+</Layout>

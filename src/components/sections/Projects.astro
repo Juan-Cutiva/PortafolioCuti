@@ -1,0 +1,51 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import ProjectsGrid from '@components/ProjectsGrid.astro';
+import { Icon } from 'astro-icon/components';
+import { getLocalizedCollection } from '@/i18n/collections';
+import { getLocaleFromUrl, getLocaleUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+const all = await getLocalizedCollection('projects', locale);
+const preview = all.slice(0, 4);
+const hasMore = all.length > preview.length;
+---
+
+<section
+	id="projects"
+	aria-labelledby="projects-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle
+			id="projects-title"
+			eyebrow={t('projects.eyebrow')}
+			title={t('projects.title')}
+			description={t('projects.description')}
+		/>
+	</div>
+
+	<div class="mt-12">
+		<ProjectsGrid entries={preview} sharedTransition locale={locale} />
+	</div>
+
+	{
+		hasMore && (
+			<div class="mt-12 flex justify-center">
+				<a
+					href={getLocaleUrl('/projects', locale)}
+					class="group border-border bg-surface hover:border-primary/60 focus-visible:outline-ring text-foreground inline-flex items-center gap-2 rounded-md border px-5 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+				>
+					{t('projects.seeAll')}
+					<Icon
+						name="lucide:arrow-right"
+						class="text-muted group-hover:text-primary h-4 w-4 transition-transform group-hover:translate-x-0.5"
+						aria-hidden="true"
+					/>
+				</a>
+			</div>
+		)
+	}
+</section>

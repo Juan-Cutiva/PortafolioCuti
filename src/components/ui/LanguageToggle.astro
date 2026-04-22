@@ -1,0 +1,198 @@
+---
+import { Icon } from 'astro-icon/components';
+import {
+	getLocaleFromUrl,
+	getLocaleUrl,
+	locales,
+	localeMeta,
+	useTranslations
+} from '@/i18n/ui';
+
+const currentLocale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(currentLocale);
+const currentMeta = localeMeta[currentLocale];
+---
+
+<!--
+  Selector de idioma como desplegable. El botón muestra la bandera activa + chevron; al
+  abrirse, un popover lista las opciones. Click fuera / Esc / selección cierran. El item
+  activo lleva `aria-current="true"` y un icono check.
+-->
+<div class="group/lang relative" data-language-toggle data-open="false">
+	<button
+		type="button"
+		id="language-toggle-trigger"
+		data-language-trigger
+		aria-haspopup="listbox"
+		aria-controls="language-toggle-menu"
+		aria-expanded="false"
+		aria-label={`${t('language.label')} — ${currentMeta.label}`}
+		class="border-border bg-surface text-foreground hover:border-primary/60 focus-visible:outline-ring inline-flex h-10 items-center gap-2 rounded-md border px-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+	>
+		<Icon name={currentMeta.flag} class="h-4 w-6 rounded-sm" aria-hidden="true" />
+		<span class="sr-only sm:not-sr-only sm:text-[11px] sm:font-mono sm:uppercase sm:tracking-wider">
+			{currentLocale}
+		</span>
+		<Icon
+			name="lucide:chevron-down"
+			class="text-muted group-data-[open=true]/lang:rotate-180 h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none"
+			aria-hidden="true"
+		/>
+	</button>
+
+	<ul
+		id="language-toggle-menu"
+		role="listbox"
+		aria-labelledby="language-toggle-trigger"
+		data-language-menu
+		class="border-border bg-surface pointer-events-none invisible absolute top-[calc(100%+0.4rem)] right-0 z-60 min-w-40 -translate-y-1 scale-[0.98] overflow-hidden rounded-md border opacity-0 shadow-lg transition-[opacity,transform] duration-150 ease-in-out group-data-[open=true]/lang:visible group-data-[open=true]/lang:pointer-events-auto group-data-[open=true]/lang:translate-y-0 group-data-[open=true]/lang:scale-100 group-data-[open=true]/lang:opacity-100 motion-reduce:transition-none"
+	>
+		{
+			locales.map((locale) => {
+				const isCurrent = locale === currentLocale;
+				const meta = localeMeta[locale];
+				const href = getLocaleUrl(Astro.url.pathname, locale);
+				return (
+					<li role="option" aria-selected={isCurrent}>
+						<a
+							href={href}
+							hreflang={meta.htmlLang}
+							data-language-option
+							aria-current={isCurrent ? 'true' : undefined}
+							data-astro-reload={!isCurrent ? '' : undefined}
+							class:list={[
+								'focus-visible:outline-ring flex h-10 items-center gap-3 px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2',
+								isCurrent
+									? 'bg-surface-elevated text-foreground'
+									: 'text-muted hover:bg-surface-elevated hover:text-foreground'
+							]}
+						>
+							<Icon
+								name={meta.flag}
+								class="h-4 w-6 shrink-0 rounded-sm"
+								aria-hidden="true"
+							/>
+							<span class="flex-1">{meta.label}</span>
+							{isCurrent && (
+								<Icon
+									name="lucide:check"
+									class="text-primary h-4 w-4 shrink-0"
+									aria-hidden="true"
+								/>
+							)}
+						</a>
+					</li>
+				);
+			})
+		}
+	</ul>
+</div>
+
+<script>
+	// El Header usa transition:persist — un flag en window evita duplicar listeners.
+
+	type WindowWithLangBound = Window & { __languageToggleBound?: boolean };
+
+	function bindLanguageToggle() {
+		const w = window as WindowWithLangBound;
+		if (w.__languageToggleBound) return;
+		w.__languageToggleBound = true;
+
+		function getRoot(): HTMLElement | null {
+			return document.querySelector<HTMLElement>('[data-language-toggle]');
+		}
+
+		function isOpen(root: HTMLElement): boolean {
+			return root.dataset.open === 'true';
+		}
+
+		function open(root: HTMLElement) {
+			const trigger = root.querySelector<HTMLElement>('[data-language-trigger]');
+			root.dataset.open = 'true';
+			trigger?.setAttribute('aria-expanded', 'true');
+			// Foco en la opción activa (o la primera) para abrir con teclado.
+			const options = root.querySelectorAll<HTMLAnchorElement>('[data-language-option]');
+			const active = Array.from(options).find((opt) => opt.getAttribute('aria-current'));
+			(active ?? options[0])?.focus();
+		}
+
+		function close(root: HTMLElement, returnFocus = false) {
+			const trigger = root.querySelector<HTMLElement>('[data-language-trigger]');
+			root.dataset.open = 'false';
+			trigger?.setAttribute('aria-expanded', 'false');
+			if (returnFocus) trigger?.focus();
+		}
+
+		// Un solo listener global: trigger toggles; click fuera cierra.
+		document.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (!target) return;
+			const root = getRoot();
+			if (!root) return;
+
+			if (target.closest('[data-language-trigger]')) {
+				event.preventDefault();
+				isOpen(root) ? close(root) : open(root);
+				return;
+			}
+
+			// Click fuera del root ⇒ cerrar.
+			if (isOpen(root) && !target.closest('[data-language-toggle]')) {
+				close(root);
+			}
+		});
+
+		document.addEventListener('keydown', (event) => {
+			const root = getRoot();
+			if (!root || !isOpen(root)) return;
+
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				close(root, true);
+				return;
+			}
+
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				const options = Array.from(
+					root.querySelectorAll<HTMLAnchorElement>('[data-language-option]')
+				);
+				if (options.length === 0) return;
+				const idx = options.indexOf(document.activeElement as HTMLAnchorElement);
+				const next =
+					event.key === 'ArrowDown'
+						? options[(idx + 1) % options.length]
+						: options[(idx - 1 + options.length) % options.length];
+				next?.focus();
+				return;
+			}
+
+			if (event.key === 'Tab') {
+				// Al salir del listbox con Tab, cerramos sin bloquear el foco natural.
+				setTimeout(() => {
+					const root2 = getRoot();
+					if (!root2) return;
+					if (!root2.contains(document.activeElement)) close(root2);
+				}, 0);
+			}
+		});
+
+		// Cerrar antes y después del swap — cubre tanto SPA nav como reloads vía
+		// `data-astro-reload` (cambio de locale). Antes de la preparación forzamos el estado
+		// cerrado sin animación para evitar que el dropdown quede "congelado" mid-transition.
+		document.addEventListener('astro:before-preparation', () => {
+			const root = getRoot();
+			if (root && isOpen(root)) close(root);
+		});
+		document.addEventListener('astro:after-swap', () => {
+			const root = getRoot();
+			if (root && isOpen(root)) close(root);
+		});
+	}
+
+	// Re-ejecuta en cada carga: el header persiste entre navegaciones, pero el listener debe
+	// estar enganchado una sola vez (flag en window).
+	document.addEventListener('astro:page-load', bindLanguageToggle);
+	// Primera carga sin View Transitions.
+	if (document.readyState !== 'loading') bindLanguageToggle();
+</script>

@@ -1,0 +1,283 @@
+---
+import { navItems } from '@/data/navigation';
+import { getLocaleFromUrl, getLocaleUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+const currentPath = Astro.url.pathname;
+
+function localizedHref(href: string): string {
+	return getLocaleUrl(href, locale);
+}
+
+function isCurrent(href: string, pathname: string): boolean {
+	// Los hash son secciones del home, no páginas; sin aria-current.
+	if (href.includes('#')) return false;
+	const full = localizedHref(href);
+	if (full === '/' || full === '/en') return pathname === '/' || pathname === '/en/';
+	return pathname === full || pathname === `${full}/`;
+}
+---
+
+<!--
+  Drawer lateral (mobile). Va en <body>, fuera del header: el `backdrop-filter` del header
+  crea un containing block que atrapaba el `position: fixed` del panel a 64px de alto.
+  Estado en `data-drawer-open` del <html> para que sobreviva a las View Transitions.
+-->
+<div
+	id="mobile-drawer"
+	class="drawer-root md:hidden"
+	role="dialog"
+	aria-modal="true"
+	aria-label={t('drawer.label')}
+	aria-hidden="true"
+>
+	<button
+		type="button"
+		class="drawer-backdrop"
+		data-drawer-close
+		aria-label={t('drawer.close')}
+		tabindex="-1"></button>
+
+	<aside class="drawer-panel" data-drawer-panel>
+		<div class="border-border flex items-center justify-between border-b px-6 py-4">
+			<p class="text-primary text-[11px] font-semibold tracking-[0.28em] uppercase">
+				{t('drawer.heading')}
+			</p>
+			<button
+				type="button"
+				class="text-muted hover:bg-surface-elevated hover:text-foreground focus-visible:outline-ring inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+				aria-label={t('drawer.close')}
+				data-drawer-close
+			>
+				<svg
+					viewBox="0 0 24 24"
+					width="20"
+					height="20"
+					aria-hidden="true"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M18 6 6 18"></path>
+					<path d="m6 6 12 12"></path>
+				</svg>
+			</button>
+		</div>
+
+		<nav aria-label={t('drawer.label')} class="flex flex-1 flex-col overflow-y-auto p-4">
+			<ul class="flex flex-col gap-1">
+				{
+					navItems.map((item) => {
+						const active = isCurrent(item.href, currentPath);
+						return (
+							<li>
+								<a
+									href={localizedHref(item.href)}
+									aria-current={active ? 'page' : undefined}
+									class:list={[
+										'drawer-link focus-visible:outline-ring flex h-12 items-center rounded-md px-4 text-base transition-colors focus-visible:outline-2 focus-visible:outline-offset-2',
+										active ? 'text-foreground' : 'text-muted hover:text-foreground'
+									]}
+								>
+									<span
+										aria-hidden="true"
+										class:list={[
+											'mr-3 h-5 w-0.75 rounded-full transition-all duration-300',
+											active ? 'bg-primary opacity-100' : 'bg-transparent opacity-0'
+										]}
+									/>
+									{t(item.labelKey)}
+								</a>
+							</li>
+						);
+					})
+				}
+			</ul>
+		</nav>
+	</aside>
+</div>
+
+<style>
+	/* DOM montado siempre para animar sin reflow. */
+	.drawer-root {
+		position: fixed;
+		inset: 0;
+		z-index: 80;
+		visibility: hidden;
+		pointer-events: none;
+	}
+
+	html[data-drawer-open] .drawer-root {
+		visibility: visible;
+		pointer-events: auto;
+	}
+
+	/* Overlay con blur sutil sobre el contenido. */
+	.drawer-backdrop {
+		position: absolute;
+		inset: 0;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
+		background: rgb(3 7 18 / 0.2);
+		backdrop-filter: blur(2px);
+		-webkit-backdrop-filter: blur(2px);
+		opacity: 0;
+		transition: opacity 0.22s ease-out;
+	}
+
+	html[data-drawer-open] .drawer-backdrop {
+		opacity: 1;
+	}
+
+	.drawer-panel {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		display: flex;
+		flex-direction: column;
+		width: min(20rem, 86vw);
+		background: var(--color-surface);
+		border-left: 1px solid var(--color-border);
+		box-shadow: -12px 0 32px rgb(0 0 0 / 0.25);
+		transform: translateX(100%);
+		will-change: transform;
+		transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+	}
+
+	html[data-drawer-open] .drawer-panel {
+		transform: translateX(0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.drawer-backdrop,
+		.drawer-panel {
+			transition: none;
+		}
+	}
+</style>
+
+<script>
+	// Delegation global porque el burger vive en el Header con `transition:persist` y no
+	// queremos re-enganchar listeners en cada View Transition.
+
+	type WindowWithDrawerBound = Window & { __mobileDrawerBound?: boolean };
+
+	function bindMobileDrawer() {
+		const w = window as WindowWithDrawerBound;
+		if (w.__mobileDrawerBound) return;
+		w.__mobileDrawerBound = true;
+
+		const html = document.documentElement;
+		const drawer = document.getElementById('mobile-drawer');
+		if (!drawer) return;
+
+		const panel = drawer.querySelector<HTMLElement>('[data-drawer-panel]');
+		if (!panel) return;
+
+		let lastFocused: HTMLElement | null = null;
+
+		const isOpen = (): boolean => html.hasAttribute('data-drawer-open');
+
+		const getFocusables = (): HTMLElement[] =>
+			Array.from(
+				panel.querySelectorAll<HTMLElement>(
+					'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				)
+			);
+
+		function updateTrigger(open: boolean) {
+			// Etiquetas en `data-label-open` / `data-label-close` para que respeten el locale
+			// activo sin hardcodear strings en JS.
+			document.querySelectorAll<HTMLElement>('[data-drawer-trigger]').forEach((trigger) => {
+				trigger.setAttribute('aria-expanded', String(open));
+				const labelOpen = trigger.dataset.labelOpen ?? '';
+				const labelClose = trigger.dataset.labelClose ?? '';
+				trigger.setAttribute('aria-label', open ? labelClose : labelOpen);
+			});
+		}
+
+		function open() {
+			if (isOpen()) return;
+			lastFocused = document.activeElement as HTMLElement | null;
+			html.setAttribute('data-drawer-open', '');
+			drawer!.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+			updateTrigger(true);
+			// Foco al primer link tras el siguiente frame (panel ya renderizado).
+			requestAnimationFrame(() => getFocusables()[0]?.focus());
+		}
+
+		function close() {
+			if (!isOpen()) return;
+			html.removeAttribute('data-drawer-open');
+			drawer!.setAttribute('aria-hidden', 'true');
+			document.body.style.overflow = '';
+			updateTrigger(false);
+			lastFocused?.focus?.();
+			lastFocused = null;
+		}
+
+		// Un solo listener global: burger toggle, cualquier [data-drawer-close] cierra.
+		document.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (!target) return;
+			if (target.closest('[data-drawer-trigger]')) {
+				isOpen() ? close() : open();
+				return;
+			}
+			if (target.closest('[data-drawer-close]')) {
+				close();
+				return;
+			}
+		});
+
+		// Click en link del panel cierra el drawer.
+		panel.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('a')) close();
+		});
+
+		// Esc cierra; Tab queda atrapado dentro mientras esté abierto.
+		document.addEventListener('keydown', (event) => {
+			if (!isOpen()) return;
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				close();
+				document.querySelector<HTMLElement>('[data-drawer-trigger]')?.focus();
+				return;
+			}
+			if (event.key === 'Tab') {
+				const focusables = getFocusables();
+				if (focusables.length === 0) return;
+				const first = focusables[0]!;
+				const last = focusables[focusables.length - 1]!;
+				const active = document.activeElement as HTMLElement | null;
+				if (event.shiftKey && active === first) {
+					event.preventDefault();
+					last.focus();
+				} else if (!event.shiftKey && active === last) {
+					event.preventDefault();
+					first.focus();
+				}
+			}
+		});
+
+		// Resize a desktop: cerrar y soltar el scroll-lock.
+		const desktopQuery = window.matchMedia('(min-width: 768px)');
+		desktopQuery.addEventListener('change', (mql) => {
+			if (mql.matches && isOpen()) close();
+		});
+
+		// Cerrar también en View Transitions.
+		document.addEventListener('astro:after-swap', () => {
+			if (isOpen()) close();
+		});
+	}
+
+	document.addEventListener('astro:page-load', bindMobileDrawer);
+</script>

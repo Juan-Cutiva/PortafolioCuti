@@ -1,0 +1,151 @@
+---
+import { Icon } from 'astro-icon/components';
+import { getLocaleFromUrl, getLocaleUrl, useTranslations } from '@/i18n/ui';
+import type { StringKey } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+const currentYear = new Date().getFullYear();
+
+// Los nombres propios (GitHub, LinkedIn…) no se traducen; solo "Correo" sí.
+const socialLinks = [
+	{ name: 'GitHub', href: 'https://github.com/Juan-Cutiva', icon: 'simple-icons:github' },
+	{
+		name: 'LinkedIn',
+		href: 'https://linkedin.com/in/juandavidcutivalopez',
+		icon: 'simple-icons:linkedin'
+	},
+	{
+		name: 'Instagram',
+		href: 'https://www.instagram.com/juan.cutiva_/',
+		icon: 'simple-icons:instagram'
+	},
+	{ name: t('contact.email'), href: 'mailto:juandavidcutiva.jdc@gmail.com', icon: 'lucide:mail' }
+];
+
+// Columnas del footer. Los hrefs se prefijan con /en cuando aplica.
+interface FooterLink {
+	labelKey: StringKey;
+	href: string;
+}
+
+const navColumns: { titleKey: StringKey; links: FooterLink[] }[] = [
+	{
+		titleKey: 'footer.col.explore',
+		links: [
+			{ labelKey: 'footer.link.projects', href: '/#projects' },
+			{ labelKey: 'footer.link.about', href: '/#about' },
+			{ labelKey: 'footer.link.experience', href: '/#experience' },
+			{ labelKey: 'footer.link.education', href: '/#education' }
+		]
+	},
+	{
+		titleKey: 'footer.col.work',
+		links: [
+			{ labelKey: 'footer.link.contact', href: '/contact' },
+			{ labelKey: 'footer.link.cv', href: '/juan-cutiva-cv.pdf' },
+			{ labelKey: 'footer.link.allProjects', href: '/projects' }
+		]
+	}
+];
+
+function localizedHref(href: string): string {
+	// PDFs viven en /public tal cual; el resto sí recibe prefijo /en cuando aplica.
+	if (href.endsWith('.pdf')) return href;
+	return getLocaleUrl(href, locale);
+}
+---
+
+<footer role="contentinfo" class="border-border bg-background text-muted mt-24 border-t">
+	<div class="mx-auto max-w-6xl px-5 py-14 sm:px-6 sm:py-16">
+		<div class="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr] md:gap-12 lg:gap-16">
+			<div class="space-y-4">
+				<a
+					href={localizedHref('/')}
+					class="text-foreground hover:text-primary focus-visible:outline-ring inline-flex items-center gap-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
+					aria-label={t('nav.backToHome')}
+				>
+					<img
+						src="/logo.svg"
+						alt=""
+						width="32"
+						height="32"
+						class="h-8 w-8"
+						decoding="async"
+					/>
+					<span class="font-semibold tracking-tight">Juan Cutiva</span>
+				</a>
+				<p class="text-muted max-w-sm text-sm leading-relaxed">{t('footer.tagline')}</p>
+				<a
+					href={localizedHref('/contact')}
+					class="text-foreground decoration-primary/60 hover:decoration-primary focus-visible:outline-ring inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+				>
+					{t('footer.cta')}
+					<Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+				</a>
+			</div>
+
+			{
+				navColumns.map((col) => (
+					<nav aria-labelledby={`footer-col-${col.titleKey}`}>
+						<h2 id={`footer-col-${col.titleKey}`} class="text-eyebrow text-muted mb-4">
+							{t(col.titleKey)}
+						</h2>
+						<ul class="space-y-2">
+							{col.links.map((link) => (
+								<li>
+									<a
+										href={localizedHref(link.href)}
+										class="text-muted hover:text-foreground focus-visible:outline-ring text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+									>
+										{t(link.labelKey)}
+									</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				))
+			}
+		</div>
+
+		<div
+			class="border-border mt-12 flex flex-col-reverse gap-6 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<p class="text-muted text-sm">
+				© {currentYear} Juan David Cutiva López. {t('footer.madeWith')}
+				<a
+					href="https://astro.build"
+					class="text-foreground decoration-primary/60 hover:decoration-primary focus-visible:outline-ring underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+					rel="noopener noreferrer external"
+					target="_blank">Astro</a
+				>
+				+
+				<a
+					href="https://tailwindcss.com"
+					class="text-foreground decoration-primary/60 hover:decoration-primary focus-visible:outline-ring underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+					rel="noopener noreferrer external"
+					target="_blank">TailwindCSS</a
+				>.
+			</p>
+
+			<ul class="flex items-center gap-1" aria-label={t('footer.socialLabel')}>
+				{
+					socialLinks.map((item) => (
+						<li>
+							<a
+								href={item.href}
+								rel={item.href.startsWith('http') ? 'noopener noreferrer me' : undefined}
+								target={item.href.startsWith('http') ? '_blank' : undefined}
+								aria-label={item.name}
+								class="text-muted hover:bg-surface-elevated hover:text-foreground focus-visible:outline-ring inline-flex h-10 w-10 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+							>
+								<Icon name={item.icon} class="h-5 w-5" aria-hidden="true" />
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</div>
+	</div>
+</footer>

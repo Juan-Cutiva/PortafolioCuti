@@ -1,0 +1,12 @@
+# Robots para el portafolio de Juan David Cutiva López.
+# Permite todo el crawleo público; bloquea la API route que no aporta valor indexable.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Hosts a tratar igual (hreflang + sitemap cubren la versión inglesa /en/).
+Host: https://tudominio.com
+
+# Sitemap — descomentar y reemplazar el dominio al deploy.
+# Sitemap: https://tudominio.com/sitemap-index.xml

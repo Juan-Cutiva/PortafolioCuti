@@ -1,0 +1,23 @@
+---
+import EducationCaseStudy from '@components/case-study/EducationCaseStudy.astro';
+import { getLocalizedCollection, cleanSlug } from '@/i18n/collections';
+import type { CollectionEntry } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+	const entries = await getLocalizedCollection('education', 'en');
+	return entries.map((entry) => ({
+		params: { slug: cleanSlug(entry) },
+		props: { entry }
+	}));
+}
+
+interface Props {
+	entry: CollectionEntry<'education'>;
+}
+
+const { entry } = Astro.props;
+---
+
+<EducationCaseStudy entry={entry} locale="en" />

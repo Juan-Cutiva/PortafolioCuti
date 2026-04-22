@@ -1,0 +1,47 @@
+---
+import { cn } from '@/lib/utils';
+import type { HTMLAttributes } from 'astro/types';
+
+type Variant = 'primary' | 'secondary' | 'ghost' | 'accent';
+type Size = 'sm' | 'md' | 'lg';
+
+// Aceptamos atributos de <button> y <a> porque `as` decide el tag en runtime. Un Partial<> de
+// ambos evita el choque de propiedades exclusivas (`type` vs `href`, etc.).
+interface Props extends Partial<HTMLAttributes<'a'> & HTMLAttributes<'button'>> {
+	variant?: Variant;
+	size?: Size;
+	as?: 'button' | 'a';
+	class?: string;
+}
+
+const {
+	variant = 'primary',
+	size = 'md',
+	as = 'button',
+	class: className,
+	...rest
+} = Astro.props;
+
+const base =
+	'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60';
+
+const variants: Record<Variant, string> = {
+	primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+	accent: 'bg-accent text-accent-foreground hover:bg-accent-hover',
+	secondary: 'border border-border bg-surface text-foreground hover:bg-surface-elevated',
+	ghost: 'text-foreground hover:bg-surface-elevated'
+};
+
+const sizes: Record<Size, string> = {
+	sm: 'h-9 px-3 text-sm',
+	md: 'h-11 px-5 text-sm',
+	lg: 'h-12 px-6 text-base'
+};
+
+const Tag = as;
+const classes = cn(base, variants[variant], sizes[size], className);
+---
+
+<Tag class={classes} {...rest}>
+	<slot />
+</Tag>

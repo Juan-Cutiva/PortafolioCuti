@@ -1,0 +1,66 @@
+---
+import { Icon } from 'astro-icon/components';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+---
+
+<button
+	type="button"
+	id="theme-toggle"
+	data-label-dark={t('theme.dark')}
+	data-label-light={t('theme.light')}
+	class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface text-foreground transition-colors hover:border-border-strong hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+	aria-label={t('theme.label')}
+	aria-pressed="false"
+	title={t('theme.label')}
+>
+	<Icon name="lucide:sun" class="hidden h-5 w-5 dark:block" aria-hidden="true" />
+	<Icon name="lucide:moon" class="block h-5 w-5 dark:hidden" aria-hidden="true" />
+	<span class="sr-only" data-theme-label>{t('theme.dark')}</span>
+</button>
+
+<script>
+	import { toggleTheme, getStoredTheme, type Theme } from '@/lib/theme';
+
+	// Mantiene el botón sincronizado con el tema actual. Se llama en la carga inicial, en cada
+	// View Transition (astro:page-load) y cuando otro componente dispara el evento `themechange`.
+	function syncToggleState() {
+		const button = document.getElementById('theme-toggle');
+		if (!button) return;
+		const label = button.querySelector<HTMLElement>('[data-theme-label]');
+		const current: Theme = getStoredTheme();
+		const isDark = current === 'dark';
+		// Etiquetas provienen del server vía data-* para respetar el locale activo.
+		const labelDark = button.dataset.labelDark ?? '';
+		const labelLight = button.dataset.labelLight ?? '';
+		const text = isDark ? labelDark : labelLight;
+		button.setAttribute('aria-pressed', String(isDark));
+		button.setAttribute('aria-label', text);
+		if (label) label.textContent = text;
+	}
+
+	type WindowWithThemeBound = Window & { __themeToggleBound?: boolean };
+
+	function bindThemeToggle() {
+		const w = window as WindowWithThemeBound;
+		syncToggleState();
+		if (w.__themeToggleBound) return;
+		w.__themeToggleBound = true;
+
+		// Delegación en document: el botón vive en el Header con `transition:persist`, por lo que
+		// el nodo sobrevive a las navegaciones. Un solo listener delegado basta para toda la sesión.
+		document.addEventListener('click', (event) => {
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('#theme-toggle')) {
+				toggleTheme();
+				syncToggleState();
+			}
+		});
+
+		window.addEventListener('themechange', syncToggleState);
+	}
+
+	document.addEventListener('astro:page-load', bindThemeToggle);
+</script>

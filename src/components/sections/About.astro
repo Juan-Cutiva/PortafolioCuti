@@ -1,0 +1,103 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import { Icon } from 'astro-icon/components';
+import { calculateAge } from '@/lib/age';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t, tList } = useTranslations(locale);
+
+const age = calculateAge();
+
+// Convierte `**texto**` en `<strong class="text-foreground">texto</strong>`. Es input controlado
+// (solo las traducciones del diccionario), así que no hay riesgo de XSS.
+function renderBold(markdown: string): string {
+	return markdown.replace(
+		/\*\*([^*]+)\*\*/g,
+		'<strong class="text-foreground">$1</strong>'
+	);
+}
+
+const paragraphs = [
+	renderBold(t('about.p1', { age })),
+	renderBold(t('about.p2', { age })),
+	renderBold(t('about.p3', { age }))
+];
+
+const softSkills = tList('about.softSkillsList');
+const interests = tList('about.interestsList');
+---
+
+<section
+	id="about"
+	aria-labelledby="about-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle id="about-title" eyebrow={t('about.eyebrow')} title={t('about.title')} />
+	</div>
+
+	<div class="mt-12 grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:gap-16">
+		<div data-reveal class="text-muted space-y-5 text-pretty opacity-0">
+			<p class="text-lede max-w-[62ch]" set:html={paragraphs[0]} />
+			<p class="max-w-[62ch]" set:html={paragraphs[1]} />
+			<p class="max-w-[62ch]" set:html={paragraphs[2]} />
+		</div>
+
+		<aside class="space-y-8">
+			<div data-reveal class="opacity-0">
+				<h3 class="text-eyebrow text-muted flex items-center gap-2">
+					<Icon name="lucide:users" class="text-primary h-4 w-4" aria-hidden="true" />
+					{t('about.softSkills')}
+				</h3>
+				<ul class="text-muted mt-4 space-y-2 text-sm">
+					{
+						softSkills.map((s) => (
+							<li class="flex items-start gap-2">
+								<Icon
+									name="lucide:check"
+									class="text-accent mt-0.5 h-4 w-4 shrink-0"
+									aria-hidden="true"
+								/>
+								<span>{s}</span>
+							</li>
+						))
+					}
+				</ul>
+			</div>
+
+			<div data-reveal class="opacity-0">
+				<h3 class="text-eyebrow text-muted flex items-center gap-2">
+					<Icon name="lucide:sparkles" class="text-primary h-4 w-4" aria-hidden="true" />
+					{t('about.interests')}
+				</h3>
+				<ul class="mt-4 flex flex-wrap gap-2">
+					{
+						interests.map((i) => (
+							<li class="border-border bg-surface text-muted rounded-md border px-2.5 py-1 font-mono text-xs">
+								{i}
+							</li>
+						))
+					}
+				</ul>
+			</div>
+
+			<div data-reveal class="opacity-0">
+				<h3 class="text-eyebrow text-muted flex items-center gap-2">
+					<Icon name="lucide:languages" class="text-primary h-4 w-4" aria-hidden="true" />
+					{t('about.languages')}
+				</h3>
+				<dl class="text-muted mt-4 space-y-1 text-sm">
+					<div class="flex items-baseline justify-between">
+						<dt class="text-foreground">{t('about.spanish')}</dt>
+						<dd>{t('about.spanishLevel')}</dd>
+					</div>
+					<div class="flex items-baseline justify-between">
+						<dt class="text-foreground">{t('about.english')}</dt>
+						<dd>{t('about.englishLevel')}</dd>
+					</div>
+				</dl>
+			</div>
+		</aside>
+	</div>
+</section>

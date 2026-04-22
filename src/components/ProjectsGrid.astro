@@ -1,0 +1,126 @@
+---
+import { Icon } from 'astro-icon/components';
+import type { CollectionEntry } from 'astro:content';
+import { cleanSlug } from '@/i18n/collections';
+import { getLocaleUrl, useTranslations, type Locale } from '@/i18n/ui';
+
+interface Props {
+	entries: readonly CollectionEntry<'projects'>[];
+	/** Si `true`, aplica `transition:name` a cada imagen para morph cross-route. */
+	sharedTransition?: boolean;
+	/** Locale activo. El prefijo de URL se aplica en consecuencia. */
+	locale: Locale;
+}
+
+const { entries, sharedTransition = false, locale } = Astro.props;
+const { t } = useTranslations(locale);
+
+function initials(title: string): string {
+	return title
+		.split(/\s+/)
+		.slice(0, 2)
+		.map((w) => w[0]?.toUpperCase() ?? '')
+		.join('');
+}
+---
+
+<ul data-reveal-stagger class="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
+	{
+		entries.map((entry) => {
+			const { data } = entry;
+			const slug = cleanSlug(entry);
+			const caseHref = getLocaleUrl(`/projects/${slug}`, locale);
+			return (
+				<li class="opacity-0">
+					<article class="group border-border bg-surface hover:border-primary/60 relative flex h-full flex-col overflow-hidden rounded-xl border transition-colors">
+						<div class="bg-surface-elevated relative aspect-16/10 w-full overflow-hidden">
+							{data.image ? (
+								<img
+									src={data.image.src}
+									alt={data.image.alt}
+									width={data.image.width}
+									height={data.image.height}
+									loading="lazy"
+									decoding="async"
+									transition:name={sharedTransition ? `project-media-${slug}` : undefined}
+									class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+								/>
+							) : (
+								<div
+									aria-hidden="true"
+									class="from-primary/10 via-surface-elevated to-accent/10 flex h-full w-full items-center justify-center bg-linear-to-br"
+								>
+									<span class="text-primary/30 text-7xl font-bold tracking-tight">
+										{initials(data.title)}
+									</span>
+								</div>
+							)}
+							{data.featured && (
+								<span
+									class="border-primary/40 bg-surface/90 text-eyebrow text-primary absolute top-3 left-3 rounded-md border px-2 py-0.5 backdrop-blur-sm"
+									aria-label={t('projects.featured')}
+								>
+									{t('projects.featured')}
+								</span>
+							)}
+						</div>
+
+						<div class="flex flex-1 flex-col p-5 sm:p-6">
+							<h3 class="text-foreground text-2xl leading-tight font-semibold tracking-tight">
+								<a
+									href={caseHref}
+									class="hover:text-primary focus-visible:outline-ring transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
+								>
+									{data.title}
+									<span class="sr-only">{t('projects.srCaseStudy')}</span>
+								</a>
+							</h3>
+							<p class="text-muted mt-3 max-w-[60ch] text-sm text-pretty">{data.description}</p>
+
+							<ul class="mt-5 flex flex-wrap gap-2" aria-label={t('projects.tech')}>
+								{data.stack.map((tech) => (
+									<li class="border-border bg-surface-elevated text-muted rounded-md border px-2 py-0.5 font-mono text-xs">
+										{tech}
+									</li>
+								))}
+							</ul>
+
+							<div class="mt-auto flex items-center gap-5 pt-6 text-sm">
+								{data.url && (
+									<a
+										href={data.url}
+										rel="noopener noreferrer external"
+										target="_blank"
+										class="text-primary hover:text-primary-hover focus-visible:outline-ring inline-flex items-center gap-1 underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+									>
+										{t('projects.liveSite')}
+										<Icon name="lucide:external-link" class="h-4 w-4" aria-hidden="true" />
+									</a>
+								)}
+								<a
+									href={caseHref}
+									class="text-muted hover:text-foreground focus-visible:outline-ring inline-flex items-center gap-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+								>
+									{t('projects.caseStudy')}
+									<Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+								</a>
+								{data.repoUrl && (
+									<a
+										href={data.repoUrl}
+										rel="noopener noreferrer external"
+										target="_blank"
+										aria-label={t('projects.srRepo', { title: data.title })}
+										class="text-muted hover:text-foreground focus-visible:outline-ring inline-flex items-center gap-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+									>
+										<Icon name="simple-icons:github" class="h-4 w-4" aria-hidden="true" />
+										<span>{t('projects.code')}</span>
+									</a>
+								)}
+							</div>
+						</div>
+					</article>
+				</li>
+			);
+		})
+	}
+</ul>

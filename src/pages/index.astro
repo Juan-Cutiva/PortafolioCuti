@@ -1,11 +1,47 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import Layout from '@layouts/Layout.astro';
+import Hero from '@components/sections/Hero.astro';
+import Projects from '@components/sections/Projects.astro';
+import About from '@components/sections/About.astro';
+import Experience from '@components/sections/Experience.astro';
+import Skills from '@components/sections/Skills.astro';
+import Education from '@components/sections/Education.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// Pre-renderizado en build: esta página no depende de datos server-side.
+export const prerender = true;
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+
+// ProfilePage conecta la home al Person global y es el schema que Google reconoce para
+// portafolios personales / hojas de vida. `mainEntity` debe apuntar al Person (`@id`).
+const profilePageSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'ProfilePage',
+	'@id': `${siteBase}/#profilepage`,
+	name: 'Juan David Cutiva López — Frontend Developer',
+	url: `${siteBase}/`,
+	inLanguage: 'es-CO',
+	dateModified: new Date().toISOString(),
+	isPartOf: { '@id': `${siteBase}/#website` },
+	mainEntity: { '@id': `${siteBase}/#person` }
+};
 ---
 
-<Layout>
-	<Welcome />
+<Layout
+	title="Juan David Cutiva López — Frontend Developer"
+	description="Portafolio de Juan David Cutiva López. Proyectos, experiencia y stack en desarrollo frontend con React, Astro y TailwindCSS."
+>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(profilePageSchema)}
+	/>
+
+	<Hero />
+	<About />
+	<Experience />
+	<Projects />
+	<Skills />
+	<Education />
 </Layout>

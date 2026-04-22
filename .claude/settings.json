@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USUARIO PC/.claude/projects/c--Users-USUARIO-PC-Desktop-Cutiva-PORTFOLIO/memory/**)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('c:/Users/USUARIO PC/Desktop/Cutiva/PORTFOLIO/.claude/settings.json','utf8'\\)\\); console.log\\('JSON OK'\\)\")",
+      "WebFetch(domain:www.joshwcomeau.com)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\USUARIO PC\\.claude\\projects\\c--Users-USUARIO-PC-Desktop-Cutiva-PORTFOLIO\\memory"
+    ]
+  }
+}

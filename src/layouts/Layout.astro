@@ -1,23 +1,323 @@
+---
+import Footer from '@/components/layout/Footer.astro';
+import Header from '@/components/layout/Header.astro';
+import MobileDrawer from '@/components/layout/MobileDrawer.astro';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/roboto-mono/wght.css';
+import '@styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+import {
+	getLocaleFromUrl,
+	getLocaleUrl,
+	locales,
+	localeMeta,
+	useTranslations,
+	type Locale
+} from '@/i18n/ui';
+
+interface ArticleMeta {
+	publishedTime?: string;
+	modifiedTime?: string;
+	author?: string;
+	section?: string;
+	tags?: readonly string[];
+}
+
+interface Props {
+	title?: string;
+	description?: string;
+	image?: string;
+	noindex?: boolean;
+	ogType?: 'website' | 'article';
+	article?: ArticleMeta;
+	/** Locale explícito; si no se pasa se saca del pathname. */
+	lang?: Locale;
+	/** Locales donde existe esta ruta. Default: todos. Pásalo cuando una ruta no tenga
+	 *  traducción todavía, para no emitir hreflang a 404. */
+	availableLocales?: readonly Locale[];
+}
+
+const currentLocale = Astro.props.lang ?? getLocaleFromUrl(Astro.url);
+const localeInfo = localeMeta[currentLocale];
+const { t } = useTranslations(currentLocale);
+
+const defaultTitles: Record<Locale, string> = {
+	es: 'Juan David Cutiva López — Frontend Developer',
+	en: 'Juan David Cutiva López — Frontend Developer'
+};
+const defaultDescriptions: Record<Locale, string> = {
+	es: 'Desarrollador Frontend autodidacta. React, Astro, TypeScript y TailwindCSS. Interfaces web modernas, accesibles y responsivas.',
+	en: 'Self-taught Frontend Developer. React, Astro, TypeScript and TailwindCSS. Modern, accessible and responsive web interfaces.'
+};
+
+const {
+	title = defaultTitles[currentLocale],
+	description = defaultDescriptions[currentLocale],
+	image = '/og-image.png',
+	noindex = false,
+	ogType = 'website',
+	article
+} = Astro.props;
+
+// Alt de la imagen social, según locale.
+const previewAltLong =
+	currentLocale === 'en'
+		? `Portfolio preview of Juan David Cutiva López — ${title}`
+		: `Vista previa del portafolio de Juan David Cutiva López — ${title}`;
+const previewAltShort =
+	currentLocale === 'en'
+		? `Portfolio preview — ${title}`
+		: `Vista previa del portafolio — ${title}`;
+
+const siteName = 'Juan Cutiva — Portafolio';
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const siteBase = Astro.site ?? Astro.url;
+const ogImageURL = new URL(image, siteBase).toString();
+const authorName = article?.author ?? 'Juan David Cutiva López';
+
+// hreflang solo para locales con traducción real. x-default va al español.
+const { availableLocales = locales } = Astro.props;
+const hreflangHrefs: { lang: string; url: URL }[] = [];
+if (availableLocales.includes('es')) {
+	const esUrl = new URL(getLocaleUrl(Astro.url.pathname, 'es'), siteBase);
+	hreflangHrefs.push({ lang: 'es-CO', url: esUrl });
+	hreflangHrefs.push({ lang: 'x-default', url: esUrl });
+}
+if (availableLocales.includes('en')) {
+	hreflangHrefs.push({
+		lang: 'en',
+		url: new URL(getLocaleUrl(Astro.url.pathname, 'en'), siteBase)
+	});
+}
+
+// Person schema. `knowsAbout`, `sameAs`, `alumniOf` y `hasCredential` le dan contexto
+// al buscador para vincular al autor con tecnologías, formación y perfiles externos.
+const personSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'Person',
+	'@id': `${siteBase.toString()}#person`,
+	name: 'Juan David Cutiva López',
+	alternateName: 'Juan Cutiva',
+	url: siteBase.toString(),
+	image: new URL('/apple-touch-icon.png', siteBase).toString(),
+	jobTitle: 'Frontend Developer',
+	email: 'mailto:juandavidcutiva.jdc@gmail.com',
+	address: {
+		'@type': 'PostalAddress',
+		addressLocality: 'Bogotá',
+		addressRegion: 'Cundinamarca',
+		addressCountry: 'CO'
+	},
+	knowsAbout: [
+		'Frontend Development',
+		'React',
+		'Astro',
+		'TypeScript',
+		'JavaScript',
+		'TailwindCSS',
+		'HTML',
+		'CSS',
+		'Web Performance',
+		'Web Accessibility',
+		'SEO',
+		'UI/UX'
+	],
+	knowsLanguage: [
+		{ '@type': 'Language', name: 'Spanish', alternateName: 'es' },
+		{ '@type': 'Language', name: 'English', alternateName: 'en' }
+	],
+	alumniOf: [
+		{
+			'@type': 'EducationalOrganization',
+			name: 'SENA — Servicio Nacional de Aprendizaje',
+			description: 'Tecnólogo en Análisis y Desarrollo de Software (2025 - 2027)'
+		}
+	],
+	hasCredential: [
+		{ '@type': 'EducationalOccupationalCredential', name: 'Version Control', credentialCategory: 'course', recognizedBy: { '@type': 'Organization', name: 'Meta · Coursera' } },
+		{ '@type': 'EducationalOccupationalCredential', name: 'Curso Profesional de Git y GitHub', credentialCategory: 'course', recognizedBy: { '@type': 'Organization', name: 'Platzi' } },
+		{ '@type': 'EducationalOccupationalCredential', name: 'Fundamentos de Programación y Desarrollo Web', credentialCategory: 'learning path', recognizedBy: { '@type': 'Organization', name: 'Platzi' } },
+		{ '@type': 'EducationalOccupationalCredential', name: 'TailwindCSS', credentialCategory: 'course', recognizedBy: { '@type': 'Organization', name: 'Platzi' } },
+		{ '@type': 'EducationalOccupationalCredential', name: 'Astro.js', credentialCategory: 'course', recognizedBy: { '@type': 'Organization', name: 'Platzi' } }
+	],
+	sameAs: [
+		'https://github.com/Juan-Cutiva',
+		'https://linkedin.com/in/juandavidcutivalopez',
+		'https://www.instagram.com/juan.cutiva_/'
+	]
+};
+
+const websiteSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'WebSite',
+	'@id': `${siteBase.toString()}#website`,
+	url: siteBase.toString(),
+	name: siteName,
+	inLanguage: currentLocale === 'en' ? 'en' : 'es-CO',
+	description,
+	publisher: { '@id': `${siteBase.toString()}#person` }
+};
+---
+
 <!doctype html>
-<html lang="en">
+<html lang={localeInfo.htmlLang}>
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
+
+		<!-- Anti-FOUC: aplica tema antes del primer paint. Default dark. -->
+		<script is:inline>
+			(function () {
+				try {
+					var saved = localStorage.getItem('theme');
+					var theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+					var root = document.documentElement;
+					root.classList.toggle('dark', theme === 'dark');
+					root.dataset.theme = theme;
+				} catch (_) {
+					document.documentElement.classList.add('dark');
+					document.documentElement.dataset.theme = 'dark';
+				}
+			})();
+		</script>
+
+		<!-- SEO base -->
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta name="author" content={authorName} />
+		<link rel="canonical" href={canonicalURL} />
+		<!-- Para que scrollbars/forms nativos respeten el tema activo. -->
+		<meta name="color-scheme" content="dark light" />
+		<!-- Google las ignora; Bing y otros aún les dan peso. -->
+		<meta
+			name="keywords"
+			content={
+				currentLocale === 'en'
+					? 'Juan David Cutiva, Juan Cutiva, Frontend Developer, React, Astro, TypeScript, TailwindCSS, Bogotá, Colombia, web developer, web performance, accessibility, SEO, UI, UX'
+					: 'Juan David Cutiva, Juan Cutiva, Desarrollador Frontend, React, Astro, TypeScript, TailwindCSS, Bogotá, Colombia, desarrollo web, rendimiento web, accesibilidad, SEO, UI, UX'
+			}
+		/>
+
+		<!-- Default: index + follow con preview máxima. `noindex` en páginas tipo 404. -->
+		{
+			noindex ? (
+				<meta name="robots" content="noindex, nofollow" />
+			) : (
+				<meta
+					name="robots"
+					content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+				/>
+			)
+		}
+
+		{hreflangHrefs.map(({ lang, url }) => <link rel="alternate" hreflang={lang} href={url} />)}
+
+		<!-- Evita que iOS Safari convierta números en tel:// automático. -->
+		<meta name="format-detection" content="telephone=no" />
+
+		<link rel="preload" as="image" type="image/svg+xml" href="/favicon.svg?v=20260420" />
+
+		<!-- Open Graph -->
+		<meta property="og:type" content={ogType} />
+		<meta property="og:site_name" content={siteName} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalURL} />
+		<meta property="og:locale" content={localeInfo.ogLocale} />
+		{/* Facebook/LinkedIn: idiomas alternos. */}
+		{Object.entries(localeMeta)
+			.filter(([code]) => code !== currentLocale)
+			.map(([, meta]) => <meta property="og:locale:alternate" content={meta.ogLocale} />)}
+		<meta property="og:image" content={ogImageURL} />
+		<meta property="og:image:secure_url" content={ogImageURL} />
+		<meta property="og:image:type" content={image.endsWith('.svg') ? 'image/svg+xml' : 'image/png'} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={previewAltLong} />
+
+		<!-- Metas de artículo: solo en case studies. -->
+		{
+			ogType === 'article' && (
+				<>
+					<meta property="article:author" content={authorName} />
+					{article?.section && (
+						<meta property="article:section" content={article.section} />
+					)}
+					{article?.publishedTime && (
+						<meta property="article:published_time" content={article.publishedTime} />
+					)}
+					{article?.modifiedTime && (
+						<meta property="article:modified_time" content={article.modifiedTime} />
+					)}
+					{article?.tags?.map((tag) => <meta property="article:tag" content={tag} />)}
+				</>
+			)
+		}
+
+		<!-- Twitter / X -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImageURL} />
+		<meta name="twitter:image:alt" content={previewAltShort} />
+
+		<!-- Favicons y manifest -->
+		<link rel="icon" type="image/png" href="/favicon-96x96.png?v=20260420" sizes="96x96" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260420" />
+		<link rel="shortcut icon" href="/favicon.ico?v=20260420" />
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=20260420" />
+		<meta name="apple-mobile-web-app-title" content="Juan Cutiva" />
+		<link rel="manifest" href="/site.webmanifest?v=20260420" />
+
+		<!-- rel="me" (IndieWeb): cruza identidad con los perfiles oficiales. -->
+		<link rel="me" href="https://github.com/Juan-Cutiva" />
+		<link rel="me" href="https://linkedin.com/in/juandavidcutivalopez" />
+		<link rel="me" href="https://www.instagram.com/juan.cutiva_/" />
+		<link rel="me" href="mailto:juandavidcutiva.jdc@gmail.com" />
+
+		<!-- Usado por /api/og (satori descarga Inter desde aquí en el primer hit). -->
+		<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+
+		<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)" />
+
+		<ClientRouter />
+
+		<script type="application/ld+json" is:inline set:html={JSON.stringify(personSchema)} />
+		<script type="application/ld+json" is:inline set:html={JSON.stringify(websiteSchema)} />
+
+		<!-- Slot para meta por página (BreadcrumbList, esquemas específicos, etc.). -->
+		<slot name="head" />
 	</head>
-	<body>
-		<slot />
+	<body class="bg-background text-foreground antialiased">
+		<a
+			href="#main-content"
+			class="focus:bg-primary focus:text-primary-foreground sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:px-4 focus:py-2"
+		>
+			{t('a11y.skipLink')}
+		</a>
+		<Header />
+
+		<!-- Drawer fuera del header a propósito: el `backdrop-filter` del header crea un
+			 containing block que atrapaba el `position: fixed` del panel. -->
+		<MobileDrawer />
+
+		<main id="main-content" tabindex="-1" class="focus:outline-none">
+			<slot />
+		</main>
+
+		<Footer />
+
+		<script>
+			import { setupSectionReveal } from '@/lib/animations';
+			import { bindThemeAcrossNavigations, applyTheme, getStoredTheme } from '@/lib/theme';
+
+			bindThemeAcrossNavigations();
+			document.addEventListener('astro:page-load', () => {
+				applyTheme(getStoredTheme());
+				setupSectionReveal();
+			});
+		</script>
 	</body>
 </html>
-
-<style>
-	html,
-	body {
-		margin: 0;
-		width: 100%;
-		height: 100%;
-	}
-</style>

@@ -1,0 +1,67 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import { Icon } from 'astro-icon/components';
+import { getExperience } from '@/data/experience';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+const experience = getExperience(locale);
+---
+
+<section
+	id="experience"
+	aria-labelledby="experience-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle
+			id="experience-title"
+			eyebrow={t('experience.eyebrow')}
+			title={t('experience.title')}
+		/>
+	</div>
+
+	<ol
+		data-reveal-stagger
+		class="before:bg-border relative mt-12 max-w-3xl space-y-10 before:absolute before:top-2 before:bottom-2 before:left-1.75 before:w-px"
+	>
+		{
+			experience.map((item) => (
+				<li class="relative pl-8 opacity-0">
+					<span
+						aria-hidden="true"
+						class="border-primary bg-background absolute top-2 left-0 h-4 w-4 rounded-full border-2"
+					/>
+					<div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+						<h3 class="text-foreground text-xl font-semibold leading-tight tracking-tight">
+							{item.role} <span class="text-muted">· {item.company}</span>
+						</h3>
+						<p class="text-muted font-mono text-xs">{item.period}</p>
+					</div>
+					{item.location && (
+						<p class="text-subtle mt-1 flex items-center gap-1 font-mono text-xs">
+							<Icon name="lucide:map-pin" class="h-3 w-3" aria-hidden="true" />
+							{item.location}
+						</p>
+					)}
+					<p class="text-muted mt-4 max-w-[62ch] text-pretty">{item.description}</p>
+					{item.highlights && item.highlights.length > 0 && (
+						<ul class="text-muted mt-4 space-y-2 text-sm">
+							{item.highlights.map((highlight) => (
+								<li class="flex items-start gap-2">
+									<Icon
+										name="lucide:check"
+										class="text-primary mt-0.5 h-4 w-4 shrink-0"
+										aria-hidden="true"
+									/>
+									<span class="max-w-[60ch]">{highlight}</span>
+								</li>
+							))}
+						</ul>
+					)}
+				</li>
+			))
+		}
+	</ol>
+</section>

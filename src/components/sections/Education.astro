@@ -1,0 +1,111 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import { Icon } from 'astro-icon/components';
+import { getLocalizedCollection, cleanSlug } from '@/i18n/collections';
+import { getLocaleFromUrl, getLocaleUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+const educationEntries = await getLocalizedCollection('education', locale);
+const certificationEntries = await getLocalizedCollection('certifications', locale);
+---
+
+<section
+	id="education"
+	aria-labelledby="education-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle
+			id="education-title"
+			eyebrow={t('education.eyebrow')}
+			title={t('education.title')}
+			description={t('education.description')}
+		/>
+	</div>
+
+	<div class="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-16">
+		<div data-reveal class="opacity-0">
+			<h3 class="text-eyebrow text-muted flex items-center gap-2">
+				<Icon name="lucide:graduation-cap" class="text-primary h-4 w-4" aria-hidden="true" />
+				{t('education.educationHeading')}
+			</h3>
+			<ol class="mt-5 space-y-4">
+				{
+					educationEntries.map((entry) => {
+						const { data } = entry;
+						const slug = cleanSlug(entry);
+						return (
+							<li>
+								<a
+									href={getLocaleUrl(`/education/${slug}`, locale)}
+									class="group focus-visible:outline-ring block focus-visible:outline-2 focus-visible:outline-offset-4"
+								>
+									<div class="border-border bg-surface group-hover:border-primary/60 rounded-lg border p-5 transition-colors sm:p-6">
+										<div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+											<h4 class="text-foreground text-lg leading-tight font-semibold">
+												{data.degree}
+											</h4>
+											{data.period && (
+												<p class="text-muted min-w-fit font-mono text-xs">{data.period}</p>
+											)}
+										</div>
+										<p class="text-muted mt-1 text-sm">{data.institution}</p>
+										{data.description && (
+											<p class="text-muted mt-3 max-w-[60ch] text-sm text-pretty">
+												{data.description}
+											</p>
+										)}
+										<p class="text-primary group-hover:text-primary-hover mt-4 inline-flex items-center gap-1 font-mono text-xs transition-colors">
+											{t('education.seeCase')}
+											<Icon name="lucide:arrow-right" class="h-3 w-3" aria-hidden="true" />
+										</p>
+									</div>
+								</a>
+							</li>
+						);
+					})
+				}
+			</ol>
+		</div>
+
+		<div data-reveal class="opacity-0">
+			<h3 class="text-eyebrow text-muted flex items-center gap-2">
+				<Icon name="lucide:award" class="text-accent h-4 w-4" aria-hidden="true" />
+				{t('education.certsHeading')}
+			</h3>
+			<ul data-reveal-stagger class="mt-5 space-y-3">
+				{
+					certificationEntries.map((entry) => {
+						const { data } = entry;
+						const slug = cleanSlug(entry);
+						return (
+							<li class="opacity-0">
+								<a
+									href={getLocaleUrl(`/certifications/${slug}`, locale)}
+									class="group focus-visible:outline-ring block focus-visible:outline-2 focus-visible:outline-offset-4"
+								>
+									<div class="border-border bg-surface group-hover:border-primary/60 flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors">
+										{data.icon && (
+											<Icon name={data.icon} class="text-foreground h-5 w-5" aria-hidden="true" />
+										)}
+										<div class="min-w-0 flex-1">
+											<p class="text-foreground truncate text-sm">{data.name}</p>
+											<p class="text-muted font-mono text-[11px]">{data.issuer}</p>
+										</div>
+										<Icon
+											name="lucide:arrow-right"
+											class="text-muted group-hover:text-primary h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+											aria-hidden="true"
+										/>
+									</div>
+								</a>
+							</li>
+						);
+					})
+				}
+			</ul>
+		</div>
+	</div>
+</section>

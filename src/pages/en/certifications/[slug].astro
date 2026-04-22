@@ -1,0 +1,23 @@
+---
+import CertificationCaseStudy from '@components/case-study/CertificationCaseStudy.astro';
+import { getLocalizedCollection, cleanSlug } from '@/i18n/collections';
+import type { CollectionEntry } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+	const entries = await getLocalizedCollection('certifications', 'en');
+	return entries.map((entry) => ({
+		params: { slug: cleanSlug(entry) },
+		props: { entry }
+	}));
+}
+
+interface Props {
+	entry: CollectionEntry<'certifications'>;
+}
+
+const { entry } = Astro.props;
+---
+
+<CertificationCaseStudy entry={entry} locale="en" />

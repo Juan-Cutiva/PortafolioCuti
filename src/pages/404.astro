@@ -1,0 +1,66 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Button from '@components/ui/Button.astro';
+import { Icon } from 'astro-icon/components';
+import { getLocalizedCollection, cleanSlug } from '@/i18n/collections';
+import { useTranslations } from '@/i18n/ui';
+
+export const prerender = true;
+
+// 404 estático: Astro renderiza una sola página 404 al build time. Se sirve en español por
+// defecto. Para 404 en inglés en `/en/*` rutas rotas sería necesario un rewrite en Vercel —
+// acceptable para MVP tratar cualquier 404 como español.
+const LOCALE = 'es' as const;
+const { t } = useTranslations(LOCALE);
+
+// Sugerencias: destacados primero, completar hasta 3 con el resto si hay espacio.
+const entries = await getLocalizedCollection('projects', LOCALE);
+const featured = entries.filter((p) => p.data.featured);
+const others = entries.filter((p) => !p.data.featured);
+const suggestions = [...featured, ...others].slice(0, 3);
+---
+
+<Layout title={t('404.title')} description={t('404.description')} noindex lang={LOCALE}>
+	<section
+		class="mx-auto flex min-h-[60vh] max-w-3xl flex-col items-center justify-center px-5 py-16 text-center sm:px-6 sm:py-20"
+	>
+		<p class="text-eyebrow text-primary">{t('404.eyebrow')}</p>
+		<h1 class="text-display-1 text-foreground mt-4 text-balance">{t('404.heading')}</h1>
+		<p class="text-muted mt-6 max-w-[60ch] text-pretty">{t('404.copy')}</p>
+		<div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+			<Button as="a" href="/" variant="primary">
+				<Icon name="lucide:home" class="h-4 w-4" aria-hidden="true" />
+				{t('404.backHome')}
+			</Button>
+			<Button as="a" href="/contact" variant="secondary">{t('caseStudy.contactMe')}</Button>
+		</div>
+	</section>
+
+	{
+		suggestions.length > 0 && (
+			<section class="mx-auto max-w-6xl px-5 pb-24 sm:px-6">
+				<h2 class="text-eyebrow text-muted">{t('404.suggestions')}</h2>
+				<ul class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{suggestions.map((entry) => {
+						const slug = cleanSlug(entry);
+						return (
+							<li>
+								<a
+									href={`/projects/${slug}`}
+									class="group border-border bg-surface hover:border-primary/60 focus-visible:outline-ring flex h-full flex-col rounded-lg border p-5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4"
+								>
+									<h3 class="text-foreground text-base font-semibold">{entry.data.title}</h3>
+									<p class="text-muted mt-2 line-clamp-3 text-sm">{entry.data.description}</p>
+									<span class="text-primary group-hover:text-primary-hover mt-auto inline-flex items-center gap-1 pt-4 font-mono text-xs transition-colors">
+										{t('projects.caseStudy')}
+										<Icon name="lucide:arrow-right" class="h-3 w-3" aria-hidden="true" />
+									</span>
+								</a>
+							</li>
+						);
+					})}
+				</ul>
+			</section>
+		)
+	}
+</Layout>

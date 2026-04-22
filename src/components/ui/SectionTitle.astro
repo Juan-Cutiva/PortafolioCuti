@@ -1,0 +1,35 @@
+---
+import { cn } from '@/lib/utils';
+
+interface Props {
+	/** Id consumido por `aria-labelledby` de la sección contenedora. */
+	id: string;
+	title: string;
+	/** Etiqueta corta en mayúsculas sobre el título. Decorativa. */
+	eyebrow?: string;
+	description?: string;
+	/** Alineación horizontal del bloque. "start" es preferible en secciones editoriales. */
+	align?: 'start' | 'center';
+	class?: string;
+}
+
+const { id, title, eyebrow, description, align = 'start', class: className } = Astro.props;
+---
+
+<header
+	class={cn(
+		'max-w-2xl',
+		align === 'center' && 'mx-auto text-center',
+		className
+	)}
+>
+	{
+		eyebrow && (
+			<p class="text-eyebrow text-primary">{eyebrow}</p>
+		)
+	}
+	<h2 id={id} class="text-display-2 mt-3 text-balance text-foreground">
+		{title}
+	</h2>
+	{description && <p class="mt-4 max-w-[60ch] text-pretty text-muted">{description}</p>}
+</header>

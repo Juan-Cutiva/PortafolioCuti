@@ -1,0 +1,154 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import Button from '@components/ui/Button.astro';
+import { Icon } from 'astro-icon/components';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+const email = 'juandavidcutiva.jdc@gmail.com';
+const linkedinUrl = 'https://linkedin.com/in/juandavidcutivalopez';
+const githubUrl = 'https://github.com/Juan-Cutiva';
+---
+
+<section
+	id="contact"
+	aria-labelledby="contact-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle
+			id="contact-title"
+			eyebrow={t('contact.eyebrow')}
+			title={t('contact.title')}
+			description={t('contact.description')}
+		/>
+	</div>
+
+	<div data-reveal class="mt-12 grid max-w-xl gap-3 opacity-0 sm:max-w-2xl sm:grid-cols-3">
+		<Button as="a" href={`mailto:${email}`} variant="primary" size="md">
+			<Icon name="lucide:mail" class="h-4 w-4" aria-hidden="true" />
+			{t('contact.email')}
+		</Button>
+		<Button
+			as="a"
+			href={linkedinUrl}
+			variant="secondary"
+			size="md"
+			rel="noopener noreferrer me"
+			target="_blank"
+		>
+			<Icon name="simple-icons:linkedin" class="h-4 w-4" aria-hidden="true" />
+			LinkedIn
+		</Button>
+		<Button
+			as="a"
+			href={githubUrl}
+			variant="secondary"
+			size="md"
+			rel="noopener noreferrer me"
+			target="_blank"
+		>
+			<Icon name="simple-icons:github" class="h-4 w-4" aria-hidden="true" />
+			GitHub
+		</Button>
+	</div>
+
+	<p data-reveal class="text-muted mt-6 font-mono text-sm opacity-0">
+		{t('contact.copyPrefix')}
+		<button
+			id="copy-email"
+			type="button"
+			data-email={email}
+			data-label-copy={t('contact.copyLabel', { email })}
+			data-label-copied={t('contact.copied')}
+			data-label-fail={t('contact.copyFail')}
+			aria-label={t('contact.copyLabel', { email })}
+			class="copy-email group/copy text-foreground decoration-primary/60 hover:decoration-primary focus-visible:outline-ring [&.is-copied]:text-accent [&.is-copied]:decoration-accent ml-1 inline-flex items-center gap-1.5 underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+		>
+			<span>{email}</span>
+			<Icon
+				name="lucide:copy"
+				class="group-[.is-copied]/copy:opacity-0 h-3.5 w-3.5 opacity-70 transition-opacity duration-200"
+				aria-hidden="true"
+			/>
+			<Icon
+				name="lucide:check"
+				class="text-accent group-[.is-copied]/copy:w-3.5 group-[.is-copied]/copy:scale-100 group-[.is-copied]/copy:opacity-100 h-3.5 w-0 scale-75 opacity-0 transition-all duration-200 motion-reduce:transition-none"
+				aria-hidden="true"
+			/>
+		</button>
+		<span id="copy-feedback" role="status" aria-live="polite" class="sr-only"></span>
+	</p>
+</section>
+
+<script>
+	// Copia el email al portapapeles. Los textos de estado viven en data-* desde el server,
+	// para respetar el locale sin hardcodear strings aquí.
+
+	type WindowWithCopyBound = Window & { __copyEmailBound?: boolean };
+
+	function copyToClipboard(text: string): Promise<void> {
+		if (navigator.clipboard && window.isSecureContext) {
+			return navigator.clipboard.writeText(text);
+		}
+		return new Promise((resolve, reject) => {
+			try {
+				const ta = document.createElement('textarea');
+				ta.value = text;
+				ta.style.position = 'fixed';
+				ta.style.opacity = '0';
+				document.body.appendChild(ta);
+				ta.focus();
+				ta.select();
+				const ok = document.execCommand('copy');
+				document.body.removeChild(ta);
+				ok ? resolve() : reject(new Error('execCommand copy falló'));
+			} catch (err) {
+				reject(err);
+			}
+		});
+	}
+
+	function setup() {
+		const w = window as WindowWithCopyBound;
+		const btn = document.querySelector<HTMLButtonElement>('#copy-email');
+		const feedback = document.getElementById('copy-feedback');
+		if (!btn) return;
+
+		if (w.__copyEmailBound && btn.dataset.bound === 'true') return;
+		btn.dataset.bound = 'true';
+		w.__copyEmailBound = true;
+
+		let resetTimer: ReturnType<typeof setTimeout> | undefined;
+
+		btn.addEventListener('click', async () => {
+			const email = btn.dataset.email ?? btn.textContent?.trim() ?? '';
+			if (!email) return;
+
+			const labelCopy = btn.dataset.labelCopy ?? '';
+			const labelCopied = btn.dataset.labelCopied ?? '';
+			const labelFail = btn.dataset.labelFail ?? '';
+
+			try {
+				await copyToClipboard(email);
+				btn.classList.add('is-copied');
+				btn.setAttribute('aria-label', labelCopied);
+				if (feedback) feedback.textContent = labelCopied;
+
+				clearTimeout(resetTimer);
+				resetTimer = setTimeout(() => {
+					btn.classList.remove('is-copied');
+					btn.setAttribute('aria-label', labelCopy);
+					if (feedback) feedback.textContent = '';
+				}, 2000);
+			} catch (err) {
+				console.error('[copy-email] fallo:', err);
+				if (feedback) feedback.textContent = labelFail;
+			}
+		});
+	}
+
+	document.addEventListener('astro:page-load', setup);
+</script>

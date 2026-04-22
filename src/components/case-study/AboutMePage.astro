@@ -1,0 +1,285 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Button from '@components/ui/Button.astro';
+import { Icon } from 'astro-icon/components';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { getEntry, render } from 'astro:content';
+import { calculateAge } from '@/lib/age';
+import type { Locale } from '@/i18n/ui';
+
+interface Props {
+	locale: Locale;
+}
+
+const { locale } = Astro.props;
+const age = calculateAge();
+
+// En inglés el md vive en la subcarpeta `en/`; en español en la raíz.
+const entryId = locale === 'en' ? 'en/sobre-mi' : 'sobre-mi';
+const entry = await getEntry('personal', entryId);
+if (!entry) throw new Error(`Falta la entrada 'personal/${entryId}'`);
+const { data } = entry;
+const { Content } = await render(entry);
+
+const lede = data.lede.replace(/\{age\}/g, String(age));
+
+// Markdown inline mínimo: [texto](url) y **negrita**. El input viene del content
+// collection (no es user-generated), así que no hay riesgo de XSS.
+function renderInline(text: string): string {
+	return text
+		.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
+			const isExternal = /^https?:\/\//.test(url);
+			const attrs = isExternal ? ' rel="noopener noreferrer external" target="_blank"' : '';
+			return `<a href="${url}" class="text-foreground decoration-primary/60 hover:decoration-primary focus-visible:outline-ring underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"${attrs}>${label}</a>`;
+		})
+		.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-foreground">$1</strong>');
+}
+
+const photosWithStatus = data.photos.map((p) => ({
+	...p,
+	exists: existsSync(join(process.cwd(), 'public', p.src))
+}));
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const pathname = locale === 'en' ? '/en/sobre-mi' : '/sobre-mi';
+const pageUrl = `${siteBase}${pathname}`;
+
+const aboutPageSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'AboutPage',
+	'@id': `${pageUrl}#aboutpage`,
+	name: data.pageTitle,
+	url: pageUrl,
+	inLanguage: locale === 'en' ? 'en' : 'es-CO',
+	dateModified: new Date().toISOString(),
+	isPartOf: { '@id': `${siteBase}/#website` },
+	about: { '@id': `${siteBase}/#person` },
+	mainEntity: { '@id': `${siteBase}/#person` }
+};
+
+const breadcrumbSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'BreadcrumbList',
+	itemListElement: [
+		{
+			'@type': 'ListItem',
+			position: 1,
+			name: locale === 'en' ? 'Home' : 'Inicio',
+			item: `${siteBase}${locale === 'en' ? '/en/' : '/'}`
+		},
+		{
+			'@type': 'ListItem',
+			position: 2,
+			name: locale === 'en' ? 'About me' : 'Sobre mí',
+			item: pageUrl
+		}
+	]
+};
+
+// El retrato es el LCP de esta página; preload explícito para ganarle a la galería.
+const portraitPhoto = photosWithStatus.find((p) => p.tall);
+const preloadPortrait = portraitPhoto?.exists ? portraitPhoto.src : null;
+---
+
+<Layout title={data.pageTitle} description={data.pageDescription} lang={locale} ogType="article">
+	{
+		preloadPortrait && (
+			<link slot="head" rel="preload" as="image" href={preloadPortrait} fetchpriority="high" />
+		)
+	}
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(aboutPageSchema)}
+	/>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(breadcrumbSchema)}
+	/>
+
+	<article class="mx-auto max-w-5xl px-6 py-20 sm:px-8 sm:py-24 md:px-10 lg:py-32">
+		<nav aria-label={data.breadcrumb.navLabel} class="text-muted mb-12 font-mono text-xs sm:mb-16">
+			<a
+				href={locale === 'en' ? '/en/' : '/'}
+				class="hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+			>
+				<Icon name="lucide:arrow-left" class="h-3 w-3" aria-hidden="true" />
+				{data.breadcrumb.backLabel}
+			</a>
+		</nav>
+
+		<header data-reveal class="opacity-0">
+			<p class="text-eyebrow text-primary">{data.eyebrow}</p>
+			<h1 class="text-display-1 text-foreground mt-5 text-balance sm:mt-6">{data.title}</h1>
+			<p class="text-lede text-muted mt-8 max-w-[60ch] text-pretty sm:mt-10">{lede}</p>
+		</header>
+
+		<section
+			data-reveal
+			aria-label={locale === 'en' ? 'Personal gallery' : 'Galería personal'}
+			class="mt-20 grid grid-cols-1 gap-5 opacity-0 sm:mt-24 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:*:first:row-span-2"
+		>
+			{
+				photosWithStatus.map((photo, idx) => (
+					<figure class="border-border bg-surface-elevated group relative aspect-4/5 overflow-hidden rounded-xl border">
+						{photo.exists ? (
+							<img
+								src={photo.src}
+								alt={photo.alt}
+								loading={idx === 0 ? 'eager' : 'lazy'}
+								fetchpriority={idx === 0 ? 'high' : undefined}
+								decoding="async"
+								class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+							/>
+						) : (
+							<div
+								aria-hidden="true"
+								class="from-primary/10 via-surface-elevated to-accent/10 flex h-full w-full flex-col items-center justify-center gap-3 bg-linear-to-br p-8 text-center"
+							>
+								<Icon name="lucide:image" class="text-muted h-8 w-8" />
+								<span class="text-muted font-mono text-xs tracking-wider uppercase">
+									{photo.label}
+								</span>
+								<span class="text-subtle max-w-[18ch] font-mono text-[10px]">
+									{locale === 'en' ? 'Place' : 'Coloca'} {photo.src}
+								</span>
+							</div>
+						)}
+						<figcaption
+							class="from-primary/80 via-primary/30 dark:from-background/90 dark:via-background/40 absolute inset-x-0 bottom-0 bg-linear-to-t to-transparent p-5 sm:p-6"
+						>
+							<p class="text-primary-foreground dark:text-foreground text-sm font-medium">
+								{photo.caption}
+							</p>
+						</figcaption>
+					</figure>
+				))
+			}
+		</section>
+
+		<section
+			data-reveal
+			class="mt-28 grid gap-10 opacity-0 sm:mt-36 sm:gap-14 lg:grid-cols-[1fr_1.6fr] lg:gap-20"
+		>
+			<h2 class="text-display-2 text-foreground text-balance">{data.whoAmI.heading}</h2>
+			<div
+				class="[&_p]:text-muted [&_p]:mt-6 [&_p]:max-w-[62ch] [&_p]:text-base [&_p]:leading-[1.7] sm:[&_p]:text-lg [&_p:first-child]:mt-0 [&_strong]:text-foreground [&_strong]:font-semibold"
+			>
+				<Content />
+			</div>
+		</section>
+
+		<section data-reveal class="mt-28 opacity-0 sm:mt-36">
+			<h2 class="text-display-2 text-foreground text-balance">{data.motivations.heading}</h2>
+			<ul class="mt-10 grid gap-5 sm:mt-12 sm:grid-cols-2 sm:gap-6">
+				{
+					data.motivations.items.map((item) => (
+						<li class="border-border bg-surface rounded-lg border p-6 sm:p-7">
+							<Icon name={item.icon} class="text-primary h-5 w-5" aria-hidden="true" />
+							<h3 class="text-foreground mt-5 font-semibold">{item.title}</h3>
+							<p
+								class="text-muted mt-3 text-sm leading-relaxed"
+								set:html={renderInline(item.body)}
+							/>
+						</li>
+					))
+				}
+			</ul>
+		</section>
+
+		<section data-reveal class="mt-28 opacity-0 sm:mt-36">
+			<h2 class="text-display-2 text-foreground text-balance">{data.freetime.heading}</h2>
+			<div class="mt-10 grid gap-12 sm:mt-12 sm:gap-14 lg:grid-cols-3">
+				{
+					data.freetime.items.map((item) => {
+						const spotifyPath = item.embed ? item.embed.type.replace('spotify-', '') : null;
+						const spotifySrc =
+							item.embed && spotifyPath
+								? `https://open.spotify.com/embed/${spotifyPath}/${item.embed.id}?utm_source=generator`
+								: null;
+						const imageExists = item.image
+							? existsSync(join(process.cwd(), 'public', item.image.src))
+							: false;
+						const hasVisual = Boolean(spotifySrc || item.image);
+						return (
+							<div>
+								<p class="text-eyebrow text-muted">{item.eyebrow}</p>
+								<p
+									class="text-foreground mt-4 text-base leading-relaxed sm:text-lg"
+									set:html={renderInline(item.body)}
+								/>
+
+								{hasVisual && (
+									<div class="border-border bg-surface-elevated mt-6 aspect-9/16 w-full overflow-hidden rounded-xl border">
+										{spotifySrc ? (
+											<iframe
+												data-testid="embed-iframe"
+												src={spotifySrc}
+												frameborder="0"
+												allowfullscreen
+												allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+												loading="lazy"
+												title={`Spotify — ${item.eyebrow}`}
+												class="block h-full w-full border-0"
+											/>
+										) : item.image && imageExists ? (
+											<img
+												src={item.image.src}
+												alt={item.image.alt}
+												loading="lazy"
+												decoding="async"
+												class="h-full w-full object-cover"
+											/>
+										) : item.image ? (
+											<div
+												aria-hidden="true"
+												class="from-primary/10 via-surface-elevated to-accent/10 flex h-full w-full flex-col items-center justify-center gap-2 bg-linear-to-br p-6 text-center"
+											>
+												<Icon name="lucide:image" class="text-muted h-7 w-7" />
+												<span class="text-subtle max-w-[20ch] font-mono text-[10px]">
+													{locale === 'en' ? 'Place' : 'Coloca'} {item.image.src}
+												</span>
+											</div>
+										) : null}
+									</div>
+								)}
+							</div>
+						);
+					})
+				}
+			</div>
+		</section>
+
+		<section data-reveal class="mt-28 opacity-0 sm:mt-36">
+			<blockquote
+				class="border-primary text-foreground max-w-[42ch] border-l-2 py-2 pl-6 text-xl font-medium leading-snug tracking-tight text-pretty sm:pl-8 sm:text-2xl"
+			>
+				<p>"{data.quote.text}"</p>
+				<footer class="text-muted mt-5 font-mono text-xs not-italic">— {data.quote.author}</footer>
+			</blockquote>
+		</section>
+
+		<footer
+			data-reveal
+			class="border-border mt-32 flex flex-col gap-6 border-t pt-14 opacity-0 sm:mt-40 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
+		>
+			<div>
+				<p class="text-eyebrow text-muted">{data.cta.eyebrow}</p>
+				<p class="text-foreground mt-3 text-lg">{data.cta.body}</p>
+			</div>
+			<Button
+				as="a"
+				href={locale === 'en' ? '/en/contact' : data.cta.buttonHref}
+				variant="primary"
+			>
+				<Icon name="lucide:mail" class="h-4 w-4" aria-hidden="true" />
+				{data.cta.buttonLabel}
+				<Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+			</Button>
+		</footer>
+	</article>
+</Layout>

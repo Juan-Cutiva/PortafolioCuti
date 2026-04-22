@@ -1,0 +1,49 @@
+---
+import Layout from '@layouts/Layout.astro';
+import ContactSection from '@components/sections/Contact.astro';
+import { useTranslations } from '@/i18n/ui';
+
+export const prerender = true;
+
+const { t } = useTranslations('en');
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const pageUrl = `${siteBase}/en/contact`;
+
+const contactPageSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'ContactPage',
+	'@id': `${pageUrl}#contactpage`,
+	name: t('contact.pageTitle'),
+	description: t('contact.pageDescription'),
+	url: pageUrl,
+	inLanguage: 'en',
+	isPartOf: { '@id': `${siteBase}/#website` },
+	mainEntity: { '@id': `${siteBase}/#person` }
+};
+
+const breadcrumbSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'BreadcrumbList',
+	itemListElement: [
+		{ '@type': 'ListItem', position: 1, name: 'Home', item: `${siteBase}/en/` },
+		{ '@type': 'ListItem', position: 2, name: 'Contact', item: pageUrl }
+	]
+};
+---
+
+<Layout title={t('contact.pageTitle')} description={t('contact.pageDescription')} lang="en">
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(contactPageSchema)}
+	/>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(breadcrumbSchema)}
+	/>
+	<ContactSection />
+</Layout>

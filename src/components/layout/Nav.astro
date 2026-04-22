@@ -1,0 +1,195 @@
+---
+import BurgerButton from '@components/ui/BurgerButton.astro';
+import ThemeToggle from '@components/ui/ThemeToggle.astro';
+import LanguageToggle from '@components/ui/LanguageToggle.astro';
+import { navItems } from '@/data/navigation';
+import { getLocaleFromUrl, getLocaleUrl, useTranslations } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+const currentPath = Astro.url.pathname;
+
+function localizedHref(href: string): string {
+	return getLocaleUrl(href, locale);
+}
+
+function isCurrent(href: string, pathname: string): boolean {
+	// Los hash (#hero, #projects…) son secciones del home. Su estado activo lo maneja el
+	// scroll-spy (data-section-active). Si no, TODOS quedarían con aria-current en `/`.
+	if (href.includes('#')) return false;
+	const full = localizedHref(href);
+	if (full === '/' || full === '/en') return pathname === '/' || pathname === '/en/';
+	return pathname === full || pathname === `${full}/`;
+}
+---
+
+<nav
+	class="mx-auto flex h-(--header-h) w-full max-w-6xl items-center justify-between px-4 sm:px-6"
+	aria-label={t('nav.primary')}
+>
+	<a
+		href={localizedHref('/')}
+		class="group inline-flex items-center gap-2 text-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+		aria-label={t('nav.backToHome')}
+	>
+		<img
+			src="/logo.svg"
+			alt=""
+			width="32"
+			height="32"
+			class="h-8 w-8 shrink-0 transition-transform duration-300 group-hover:rotate-[8deg]"
+			decoding="async"
+			fetchpriority="high"
+		/>
+		<span class="font-semibold tracking-tight">Juan Cutiva</span>
+	</a>
+
+	<ul class="nav-list hidden items-center gap-1 md:flex" data-current-path={currentPath}>
+		{
+			navItems.map((item) => {
+				const active = isCurrent(item.href, currentPath);
+				const hash = item.href.startsWith('/#') ? item.href.slice(2) : '';
+				return (
+					<li>
+						<a
+							href={localizedHref(item.href)}
+							data-nav-link
+							data-hash={hash || undefined}
+							aria-current={active ? 'page' : undefined}
+							class="nav-link"
+						>
+							<span class="nav-link__label">{t(item.labelKey)}</span>
+							<span class="nav-link__underline" aria-hidden="true" />
+						</a>
+					</li>
+				);
+			})
+		}
+	</ul>
+
+	<div class="flex items-center gap-1 sm:gap-2">
+		<LanguageToggle />
+		<ThemeToggle />
+		<BurgerButton controls="mobile-drawer" />
+	</div>
+</nav>
+
+<style>
+	.nav-link {
+		position: relative;
+		display: inline-flex;
+		height: 2.5rem;
+		align-items: center;
+		padding-inline: 0.85rem;
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		border-radius: 0.375rem;
+		transition:
+			color 180ms ease,
+			background-color 180ms ease;
+	}
+
+	.nav-link:hover,
+	.nav-link:focus-visible {
+		color: var(--color-foreground);
+	}
+
+	.nav-link:focus-visible {
+		outline: 2px solid var(--color-ring);
+		outline-offset: 2px;
+	}
+
+	.nav-link__underline {
+		position: absolute;
+		left: 0.85rem;
+		right: 0.85rem;
+		bottom: 0.35rem;
+		height: 2px;
+		background: var(--color-primary);
+		border-radius: 1px;
+		transform: scaleX(0);
+		transform-origin: left;
+		transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+		pointer-events: none;
+	}
+
+	.nav-link:hover .nav-link__underline,
+	.nav-link:focus-visible .nav-link__underline,
+	.nav-link[aria-current='page'] .nav-link__underline,
+	.nav-link[data-section-active='true'] .nav-link__underline {
+		transform: scaleX(1);
+	}
+
+	.nav-link[aria-current='page'],
+	.nav-link[data-section-active='true'] {
+		color: var(--color-foreground);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.nav-link,
+		.nav-link__underline {
+			transition: none;
+		}
+	}
+</style>
+
+<script>
+	type WindowWithNavSpy = Window & { __navScrollSpy?: boolean };
+
+	function setupNavScrollSpy() {
+		const w = window as WindowWithNavSpy;
+		if (w.__navScrollSpy) return;
+		w.__navScrollSpy = true;
+
+		function resync() {
+			const links = Array.from(
+				document.querySelectorAll<HTMLAnchorElement>('.nav-link[data-hash]')
+			);
+			if (links.length === 0) return;
+
+			// Solo corre en home (ambos locales).
+			const path = window.location.pathname;
+			const isHome = path === '/' || path === '/en' || path === '/en/';
+
+			if (!isHome) {
+				links.forEach((link) => link.removeAttribute('data-section-active'));
+				return;
+			}
+
+			const sections = links
+				.map((link) => {
+					const id = link.dataset.hash;
+					if (!id) return null;
+					const el = document.getElementById(id);
+					return el ? { link, el } : null;
+				})
+				.filter((x): x is { link: HTMLAnchorElement; el: HTMLElement } => x !== null);
+
+			if (sections.length === 0) return;
+
+			const observer = new IntersectionObserver(
+				(entries) => {
+					entries.forEach((entry) => {
+						const match = sections.find((s) => s.el === entry.target);
+						if (!match) return;
+						if (entry.isIntersecting) {
+							sections.forEach((s) => s.link.removeAttribute('data-section-active'));
+							match.link.setAttribute('data-section-active', 'true');
+						}
+					});
+				},
+				{
+					rootMargin: '-40% 0px -55% 0px',
+					threshold: 0
+				}
+			);
+
+			sections.forEach((s) => observer.observe(s.el));
+		}
+
+		document.addEventListener('astro:page-load', resync);
+		resync();
+	}
+
+	document.addEventListener('astro:page-load', setupNavScrollSpy);
+</script>

@@ -1,0 +1,153 @@
+---
+import Layout from '@layouts/Layout.astro';
+import Button from '@components/ui/Button.astro';
+import CaseStudyHeader from '@components/CaseStudyHeader.astro';
+import { Icon } from 'astro-icon/components';
+import { render, type CollectionEntry } from 'astro:content';
+import { cleanSlug } from '@/i18n/collections';
+import { getLocaleUrl, useTranslations, type Locale } from '@/i18n/ui';
+
+interface Props {
+	entry: CollectionEntry<'projects'>;
+	locale: Locale;
+}
+
+const { entry, locale } = Astro.props;
+const { data } = entry;
+const { Content } = await render(entry);
+
+const { t } = useTranslations(locale);
+const slug = cleanSlug(entry);
+
+const title = `${data.title} — ${t('caseStudy.project')}`;
+const ogImage = `/api/og?type=project&slug=${slug}`;
+
+const siteBase = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const pageUrl = `${siteBase}${getLocaleUrl(`/projects/${slug}`, locale)}`;
+const imageAbsolute = data.image?.src ? new URL(data.image.src, siteBase).toString() : undefined;
+
+// Breadcrumb: Inicio → Proyectos → Este proyecto.
+const breadcrumbSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'BreadcrumbList',
+	itemListElement: [
+		{
+			'@type': 'ListItem',
+			position: 1,
+			name: t('nav.home'),
+			item: `${siteBase}${getLocaleUrl('/', locale)}`
+		},
+		{
+			'@type': 'ListItem',
+			position: 2,
+			name: t('nav.projects'),
+			item: `${siteBase}${getLocaleUrl('/projects', locale)}`
+		},
+		{ '@type': 'ListItem', position: 3, name: data.title, item: pageUrl }
+	]
+};
+
+const nowIso = new Date().toISOString();
+
+// CreativeWork encaja mejor que Article para case studies de portfolio. Se conecta
+// al Person global vía `@id` para que Google una el grafo.
+const creativeWorkSchema = {
+	'@context': 'https://schema.org',
+	'@type': 'CreativeWork',
+	'@id': `${pageUrl}#case-study`,
+	name: data.title,
+	headline: data.title,
+	description: data.description,
+	url: pageUrl,
+	inLanguage: locale === 'en' ? 'en' : 'es-CO',
+	author: { '@id': `${siteBase}/#person` },
+	creator: { '@id': `${siteBase}/#person` },
+	isPartOf: { '@id': `${siteBase}/#website` },
+	dateModified: nowIso,
+	...(imageAbsolute ? { image: imageAbsolute } : {}),
+	...(data.url ? { sameAs: data.url } : {}),
+	...(data.meta?.year ? { dateCreated: data.meta.year } : {}),
+	...(data.meta?.client ? { publisher: { '@type': 'Organization', name: data.meta.client } } : {}),
+	keywords: data.stack.join(', ')
+};
+---
+
+<Layout
+	title={title}
+	description={data.description}
+	image={ogImage}
+	ogType="article"
+	lang={locale}
+	article={{
+		section: t('nav.projects'),
+		publishedTime: data.meta?.year ? `${data.meta.year}-01-01` : undefined,
+		modifiedTime: nowIso,
+		tags: data.stack
+	}}
+>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(breadcrumbSchema)}
+	/>
+	<script
+		slot="head"
+		type="application/ld+json"
+		is:inline
+		set:html={JSON.stringify(creativeWorkSchema)}
+	/>
+
+	<article class="mx-auto max-w-3xl px-5 py-16 sm:px-6 sm:py-24">
+		<CaseStudyHeader
+			breadcrumb={{
+				href: getLocaleUrl('/#projects', locale),
+				label: t('caseStudy.backProjects')
+			}}
+			eyebrow={t('caseStudy.project')}
+			title={data.title}
+			description={data.description}
+			primaryButton={
+				data.url
+					? {
+							href: data.url,
+							label: t('caseStudy.liveSite'),
+							variant: 'primary',
+							icon: 'lucide:external-link'
+						}
+					: undefined
+			}
+			extraButtons={data.repoUrl
+				? [
+						{
+							href: data.repoUrl,
+							label: t('caseStudy.viewCode'),
+							variant: 'secondary',
+							icon: 'simple-icons:github'
+						}
+					]
+				: []}
+			image={data.image}
+			imageTransitionName={`project-media-${slug}`}
+			tags={data.stack}
+			meta={data.meta}
+		/>
+
+		<div class="case-study-prose mt-14">
+			<Content />
+		</div>
+
+		<footer
+			class="border-border mt-16 flex flex-col gap-4 border-t pt-10 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<Button as="a" href={getLocaleUrl('/#projects', locale)} variant="ghost">
+				<Icon name="lucide:arrow-left" class="h-4 w-4" aria-hidden="true" />
+				{t('caseStudy.backToProjects')}
+			</Button>
+			<Button as="a" href={getLocaleUrl('/contact', locale)} variant="primary">
+				{t('caseStudy.contactCta')}
+				<Icon name="lucide:arrow-right" class="h-4 w-4" aria-hidden="true" />
+			</Button>
+		</footer>
+	</article>
+</Layout>

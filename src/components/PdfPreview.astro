@@ -1,0 +1,164 @@
+---
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface Props {
+	/** Ruta pública del PDF (p. ej. `/certifications/git-github-platzi.pdf`). */
+	src: string;
+	/** Descripción accesible del contenido del certificado. */
+	alt: string;
+	/** Pie opcional bajo la figure. */
+	caption?: string;
+}
+
+const { src, alt, caption } = Astro.props;
+
+// Derivación determinista PDF → PNG pre-renderizado. El script `scripts/generate-pdf-previews.mjs`
+// coloca los PNG en `public/images/certifications/` con el mismo nombre base que el PDF.
+// Si el PNG existe en build time, lo servimos como imagen estática (carga instantánea y cacheable
+// en CDN). Si no, caemos al fallback de pdf.js en cliente.
+const fileName = src.split('/').pop() ?? '';
+const baseName = fileName.replace(/\.pdf$/i, '');
+const previewPublicPath = `/images/certifications/${baseName}.png`;
+const previewFsPath = join(process.cwd(), 'public', 'images', 'certifications', `${baseName}.png`);
+const hasPregeneratedPreview = baseName && existsSync(previewFsPath);
+---
+
+{
+	hasPregeneratedPreview ? (
+		/* Ruta rápida: PNG pre-renderizado. Se comporta como cualquier imagen estática — sin JS,
+		   sin toolbar, servido desde el CDN con cache agresivo. */
+		<figure class="border-border bg-surface-elevated mt-12 overflow-hidden rounded-xl border">
+			<img
+				src={previewPublicPath}
+				alt={alt}
+				loading="eager"
+				decoding="async"
+				class="block w-full bg-white object-contain"
+			/>
+			{caption && (
+				<figcaption class="border-border text-muted flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 font-mono text-[11px]">
+					<span>{caption}</span>
+					<a
+						href={src}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="text-foreground decoration-primary/60 hover:decoration-primary inline-flex items-center gap-1 underline underline-offset-4 transition-colors"
+					>
+						Ver PDF
+					</a>
+				</figcaption>
+			)}
+		</figure>
+	) : (
+		/* Fallback: renderizado con pdf.js en el cliente. Solo entra en juego cuando el script
+		   de previews no se ha ejecutado (p. ej. PDF recién añadido sin correr `npm run previews`). */
+		<figure class="border-border bg-surface-elevated mt-12 overflow-hidden rounded-xl border">
+			<div
+				class="pdf-preview relative aspect-17/22 w-full bg-white"
+				data-pdf-src={src}
+				role="img"
+				aria-label={alt}
+				aria-busy="true"
+			>
+				<canvas class="pdf-preview__canvas block h-full w-full" />
+				<div
+					class="pdf-preview__fallback bg-surface-elevated text-muted absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm"
+					hidden
+				>
+					<p>No se pudo mostrar el PDF.</p>
+					<a
+						href={src}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="text-foreground decoration-primary/60 hover:decoration-primary underline underline-offset-4 transition-colors"
+					>
+						Abrir documento
+					</a>
+				</div>
+			</div>
+			{caption && (
+				<figcaption class="border-border text-muted flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 font-mono text-[11px]">
+					<span>{caption}</span>
+					<a
+						href={src}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="text-foreground decoration-primary/60 hover:decoration-primary underline underline-offset-4 transition-colors"
+					>
+						Ver PDF
+					</a>
+				</figcaption>
+			)}
+		</figure>
+	)
+}
+
+<script>
+	// Fallback cliente: solo corre cuando hay un `.pdf-preview` en la ruta (es decir, no se
+	// generó PNG). Import dinámico → el chunk de pdf.js no baja si todos los PDFs tienen PNG
+	// pre-renderizado (caso común en producción).
+
+	import type * as PdfJsTypes from 'pdfjs-dist';
+
+	type PdfjsModule = typeof PdfJsTypes;
+	type WindowWithPdfCache = Window & { __pdfjs?: PdfjsModule };
+
+	async function getPdfjs(): Promise<PdfjsModule> {
+		const w = window as WindowWithPdfCache;
+		if (w.__pdfjs) return w.__pdfjs;
+		const pdfjs = (await import('pdfjs-dist')) as PdfjsModule;
+		const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+		pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+		w.__pdfjs = pdfjs;
+		return pdfjs;
+	}
+
+	async function renderPreview(container: HTMLElement) {
+		const src = container.dataset.pdfSrc;
+		if (!src) return;
+		if (container.dataset.pdfRendered === 'true') return;
+		container.dataset.pdfRendered = 'true';
+
+		const canvas = container.querySelector<HTMLCanvasElement>('.pdf-preview__canvas');
+		const fallback = container.querySelector<HTMLElement>('.pdf-preview__fallback');
+		if (!canvas) return;
+
+		try {
+			const pdfjs = await getPdfjs();
+			const pdf = await pdfjs.getDocument(src).promise;
+			const page = await pdf.getPage(1);
+
+			// Densidad moderada — 1.5× es suficiente para capturas de certificados legibles
+			// y evita tiempos de render largos en móviles.
+			const pixelRatio = Math.min(window.devicePixelRatio ?? 1, 1.5);
+			const baseViewport = page.getViewport({ scale: 1 });
+			const containerWidth = container.clientWidth || 800;
+			const scale = (containerWidth / baseViewport.width) * pixelRatio;
+			const viewport = page.getViewport({ scale });
+
+			canvas.width = Math.floor(viewport.width);
+			canvas.height = Math.floor(viewport.height);
+			container.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
+
+			const ctx = canvas.getContext('2d');
+			if (!ctx) throw new Error('No se pudo obtener el contexto 2D del canvas.');
+
+			await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+			container.setAttribute('aria-busy', 'false');
+		} catch (err) {
+			console.error('[pdf-preview] fallo al renderizar:', err);
+			container.setAttribute('aria-busy', 'false');
+			canvas.hidden = true;
+			if (fallback) fallback.hidden = false;
+		}
+	}
+
+	function setup() {
+		document.querySelectorAll<HTMLElement>('.pdf-preview').forEach((container) => {
+			renderPreview(container);
+		});
+	}
+
+	document.addEventListener('astro:page-load', setup);
+</script>

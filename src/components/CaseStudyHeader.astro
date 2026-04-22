@@ -1,0 +1,237 @@
+---
+import Button from '@components/ui/Button.astro';
+import PdfPreview from '@components/PdfPreview.astro';
+import { Icon } from 'astro-icon/components';
+import type { CaseStudyMeta, Image } from '@/types/portfolio';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+
+interface ExtraButton {
+	href: string;
+	label: string;
+	variant?: 'primary' | 'secondary' | 'ghost' | 'accent';
+	icon?: string;
+	download?: boolean;
+}
+
+interface Props {
+	eyebrow: string;
+	/** Color del eyebrow (ej. `text-primary`, `text-accent`). */
+	eyebrowTone?: 'primary' | 'accent';
+	title: string;
+	description: string;
+	/** Botón primario visible si el usuario cliente tiene URL. */
+	primaryButton?: ExtraButton;
+	/** Botones adicionales (código, CV oficial, etc.). */
+	extraButtons?: readonly ExtraButton[];
+	/** Badge lateral (p. ej. emisor de un certificado). */
+	badge?: { icon?: string; label: string };
+	/** Imagen destacada. `aspect-ratio` fijo 16/10. */
+	image?: Image;
+	/** Cómo renderizar la imagen. `contain` para capturas completas, `cover` para framing. */
+	imageFit?: 'cover' | 'contain';
+	/**
+	 * PDF alternativo a `image`. Si se pasa, se embebe con `<object>` y ofrece un fallback de
+	 * descarga para navegadores que no soportan visualización inline (Safari iOS, algunos Android).
+	 */
+	pdf?: string;
+	/** Tags horizontales bajo el header (p. ej. stack del proyecto). */
+	tags?: readonly string[];
+	/** Pie opcional dentro de la figure (útil para certificados). */
+	imageCaption?: string;
+	/**
+	 * Nombre compartido de View Transition para la imagen. Cuando el grid de origen usa el
+	 * mismo nombre en su `<img>`, Astro hace morph suave entre ambas. Dejar vacío cuando no
+	 * haya pareja (evita saltos desde grids con layout distinto).
+	 */
+	imageTransitionName?: string;
+	/** Meta grid con hasta 4 campos. */
+	meta?: CaseStudyMeta;
+	/** Enlaces del breadcrumb visible arriba (primer ítem, último = página actual). */
+	breadcrumb?: { href: string; label: string };
+}
+
+const {
+	eyebrow,
+	eyebrowTone = 'primary',
+	title,
+	description,
+	primaryButton,
+	extraButtons = [],
+	badge,
+	image,
+	imageFit = 'cover',
+	pdf,
+	tags,
+	imageCaption,
+	imageTransitionName,
+	meta,
+	breadcrumb
+} = Astro.props;
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+const eyebrowClass = eyebrowTone === 'accent' ? 'text-accent' : 'text-primary';
+---
+
+{
+	breadcrumb && (
+		<nav aria-label={t('nav.secondary')} class="text-muted mb-8 font-mono text-xs">
+			<a
+				href={breadcrumb.href}
+				class="hover:text-foreground inline-flex items-center gap-1 transition-colors"
+			>
+				<Icon name="lucide:arrow-left" class="h-3 w-3" aria-hidden="true" />
+				{breadcrumb.label}
+			</a>
+		</nav>
+	)
+}
+
+<header class="space-y-5">
+	<p class={`text-eyebrow ${eyebrowClass}`}>{eyebrow}</p>
+	<h1 class="text-display-1 text-foreground text-balance">{title}</h1>
+	<p class="text-lede text-muted max-w-[62ch] text-pretty">{description}</p>
+
+	{
+		(primaryButton || extraButtons.length > 0 || badge) && (
+			<div class="flex flex-wrap items-center gap-3 pt-2">
+				{primaryButton && (
+					<Button
+						as="a"
+						href={primaryButton.href}
+						variant={primaryButton.variant ?? 'primary'}
+						rel={primaryButton.href.startsWith('http') ? 'noopener noreferrer external' : undefined}
+						target={primaryButton.href.startsWith('http') ? '_blank' : undefined}
+						download={primaryButton.download}
+					>
+						{primaryButton.label}
+						{primaryButton.icon && (
+							<Icon name={primaryButton.icon} class="h-4 w-4" aria-hidden="true" />
+						)}
+					</Button>
+				)}
+				{extraButtons.map((b) => (
+					<Button
+						as="a"
+						href={b.href}
+						variant={b.variant ?? 'secondary'}
+						rel={b.href.startsWith('http') ? 'noopener noreferrer external' : undefined}
+						target={b.href.startsWith('http') ? '_blank' : undefined}
+						download={b.download}
+					>
+						{b.icon && <Icon name={b.icon} class="h-4 w-4" aria-hidden="true" />}
+						{b.label}
+					</Button>
+				))}
+				{badge && (
+					<span class="border-border bg-surface text-muted inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-xs">
+						{badge.icon && (
+							<Icon name={badge.icon} class="text-foreground h-4 w-4" aria-hidden="true" />
+						)}
+						{badge.label}
+					</span>
+				)}
+			</div>
+		)
+	}
+
+	{
+		tags && tags.length > 0 && (
+			<ul class="flex flex-wrap gap-2 pt-4" aria-label={t('projects.tech')}>
+				{tags.map((tag) => (
+					<li class="border-border bg-surface text-muted rounded-md border px-2 py-0.5 font-mono text-xs">
+						{tag}
+					</li>
+				))}
+			</ul>
+		)
+	}
+</header>
+
+{
+	image ? (
+		/* La imagen siempre gana: se ve como preview del certificado o proyecto. Si también hay
+		   PDF, se añade un enlace en el pie para abrirlo o descargarlo. */
+		<figure class="border-border bg-surface-elevated mt-12 overflow-hidden rounded-xl border">
+			<img
+				src={image.src}
+				alt={image.alt}
+				width={image.width}
+				height={image.height}
+				loading="eager"
+				decoding="async"
+				transition:name={imageTransitionName}
+				class={`${imageFit === 'contain' ? 'w-full object-contain' : 'aspect-16/10 w-full object-cover'}`}
+			/>
+			{(imageCaption || pdf) && (
+				<figcaption class="border-border text-muted flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 font-mono text-[11px]">
+					<span>{imageCaption ?? t('caseStudy.pdfOfficial')}</span>
+					{pdf && (
+						<a
+							href={pdf}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-foreground decoration-primary/60 hover:decoration-primary inline-flex items-center gap-1 underline underline-offset-4 transition-colors"
+						>
+							{t('caseStudy.viewPdf')}
+						</a>
+					)}
+				</figcaption>
+			)}
+		</figure>
+	) : pdf ? (
+		/* Sin imagen: el PDF se renderiza como imagen inline (primera página en canvas via
+		   pdf.js). Sin toolbar ni thumbnails nativos del browser. */
+		<PdfPreview src={pdf} alt={imageCaption ?? t('caseStudy.pdfOfficial')} caption={imageCaption} />
+	) : null
+}
+
+{
+	meta && (
+		<dl class="border-border mt-12 grid grid-cols-2 gap-6 border-y py-6 text-sm sm:grid-cols-4">
+			{meta.role && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaRole')}</dt>
+					<dd class="text-foreground mt-2">{meta.role}</dd>
+				</div>
+			)}
+			{meta.client && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaClient')}</dt>
+					<dd class="text-foreground mt-2">{meta.client}</dd>
+				</div>
+			)}
+			{meta.issuer && !meta.client && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaIssuer')}</dt>
+					<dd class="text-foreground mt-2">{meta.issuer}</dd>
+				</div>
+			)}
+			{meta.location && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaLocation')}</dt>
+					<dd class="text-foreground mt-2">{meta.location}</dd>
+				</div>
+			)}
+			{meta.duration && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaDuration')}</dt>
+					<dd class="text-foreground mt-2">{meta.duration}</dd>
+				</div>
+			)}
+			{meta.year && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaYear')}</dt>
+					<dd class="text-foreground mt-2">{meta.year}</dd>
+				</div>
+			)}
+			{meta.type && (
+				<div>
+					<dt class="text-eyebrow text-muted">{t('caseStudy.metaType')}</dt>
+					<dd class="text-foreground mt-2">{meta.type}</dd>
+				</div>
+			)}
+		</dl>
+	)
+}

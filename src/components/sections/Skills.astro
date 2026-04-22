@@ -1,0 +1,76 @@
+---
+import SectionTitle from '@components/ui/SectionTitle.astro';
+import { Icon } from 'astro-icon/components';
+import { skills } from '@/data/skills';
+import { getLocaleFromUrl, useTranslations } from '@/i18n/ui';
+import type { StringKey } from '@/i18n/ui';
+
+const locale = getLocaleFromUrl(Astro.url);
+const { t } = useTranslations(locale);
+
+// Grupos ordenados. Las etiquetas son keys del diccionario i18n.
+const groups: { key: string; labelKey: StringKey }[] = [
+	{ key: 'frontend', labelKey: 'skills.groups.frontend' },
+	{ key: 'base', labelKey: 'skills.groups.base' },
+	{ key: 'language', labelKey: 'skills.groups.language' },
+	{ key: 'tooling', labelKey: 'skills.groups.tooling' }
+];
+---
+
+<section
+	id="skills"
+	aria-labelledby="skills-title"
+	class="mx-auto max-w-6xl px-5 py-20 sm:px-6 sm:py-28"
+>
+	<div data-reveal class="opacity-0">
+		<SectionTitle id="skills-title" eyebrow={t('skills.eyebrow')} title={t('skills.title')} />
+	</div>
+
+	<div data-reveal-stagger class="mt-12 grid gap-8 sm:grid-cols-2">
+		{
+			groups.map((group) => {
+				const items = skills.filter((s) => s.category === group.key);
+				if (items.length === 0) return null;
+				return (
+					<div class="opacity-0">
+						<h3 class="text-eyebrow text-muted">{t(group.labelKey)}</h3>
+						<ul class="mt-4 flex flex-wrap gap-2">
+							{items.map((skill) => {
+								const inner = (
+									<span class="border-border bg-surface text-foreground hover:border-primary/60 hover:bg-surface-elevated inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors">
+										<Icon name={skill.icon} class="text-primary h-4 w-4" aria-hidden="true" />
+										<span>{skill.name}</span>
+										{skill.url && (
+											<Icon
+												name="lucide:external-link"
+												class="text-muted h-3 w-3"
+												aria-hidden="true"
+											/>
+										)}
+									</span>
+								);
+								return (
+									<li>
+										{skill.url ? (
+											<a
+												href={skill.url}
+												rel="noopener noreferrer external"
+												target="_blank"
+												aria-label={t('skills.officialSiteOf', { name: skill.name })}
+												class="focus-visible:outline-ring inline-block focus-visible:outline-2 focus-visible:outline-offset-4"
+											>
+												{inner}
+											</a>
+										) : (
+											inner
+										)}
+									</li>
+								);
+							})}
+						</ul>
+					</div>
+				);
+			})
+		}
+	</div>
+</section>

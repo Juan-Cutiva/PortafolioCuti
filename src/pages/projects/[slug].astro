@@ -1,0 +1,25 @@
+---
+import ProjectCaseStudy from '@components/case-study/ProjectCaseStudy.astro';
+import { getLocalizedCollection, cleanSlug } from '@/i18n/collections';
+import type { CollectionEntry } from 'astro:content';
+
+// Pre-renderizado por cada entrada en español de la colección `projects`. Las traducciones
+// al inglés viven bajo `src/content/projects/en/` y son servidas por `src/pages/en/projects/[slug].astro`.
+export const prerender = true;
+
+export async function getStaticPaths() {
+	const entries = await getLocalizedCollection('projects', 'es');
+	return entries.map((entry) => ({
+		params: { slug: cleanSlug(entry) },
+		props: { entry }
+	}));
+}
+
+interface Props {
+	entry: CollectionEntry<'projects'>;
+}
+
+const { entry } = Astro.props;
+---
+
+<ProjectCaseStudy entry={entry} locale="es" />
