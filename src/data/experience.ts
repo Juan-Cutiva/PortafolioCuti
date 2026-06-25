@@ -9,7 +9,7 @@ const experienceByLocale: Record<Locale, readonly ExperienceItem[]> = {
 		{
 			role: 'Desarrollador Frontend',
 			company: 'Centro Jurídico Internacional',
-			period: 'Feb 2025 — Presente',
+			period: 'Feb 2025 — Jun 2026',
 			location: 'Bogotá, Colombia',
 			description:
 				'Diseño y desarrollo de interfaces web para productos del grupo, con foco en performance, accesibilidad y experiencia de usuario.',
